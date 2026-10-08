@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>書体の見比べ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- 試作用に候補をすべて Google Fonts から読む。採用後はゲーム本体に使う文字だけ切り出して同梱する -->
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=Shippori+Mincho+B1:wght@800&family=Zen+Old+Mincho:wght@700;900&family=Zen+Kaku+Gothic+New:wght@400;700&family=IBM+Plex+Sans+JP:wght@400;600&family=Noto+Sans+JP:wght@400;700&family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Mono:wght@400&family=Spline+Sans+Mono:wght@400&family=DM+Mono:wght@400&family=Inter:wght@400&display=swap" rel="stylesheet">
+<style>
+/* 色はゲーム本体のダークテーマと同じ */
+:root{
+  --bg1:#2c343b; --bg2:#0a0d10;
+  --ink:#e8e3d6; --ink2:#9aa6ad; --ink3:#66727a;
+  --panel:rgba(20,26,31,.72); --panel-solid:#161c21; --well:rgba(255,255,255,.06);
+  --line:rgba(255,255,255,.12); --gold:#d9b25c; --red:#a8321f; --ivory:#e6dbc3; --silver:#dfe8ea;
+  --mincho:"Shippori Mincho"; --mw:600; --gothic:"Zen Kaku Gothic New"; --gw:700; --num:var(--gothic); --track:.14em;
+}
+*{ box-sizing:border-box; }
+body{ margin:0; min-height:100vh; background:var(--bg2); color:var(--ink); padding:16px;
+  font-family:var(--gothic),"Hiragino Kaku Gothic ProN",system-ui,sans-serif; }
+main{ max-width:1180px; margin:0 auto; }
+h1{ font-size:18px; font-weight:700; margin:8px 0 4px; }
+.lead{ color:var(--ink2); font-size:13px; line-height:1.7; margin:4px 0 16px; max-width:46em; }
+
+/* 操作パネル */
+.ctl{ display:grid; gap:12px; background:var(--panel-solid); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:16px; }
+.ctl h2{ font-size:13px; margin:0 0 6px; color:var(--ink2); font-weight:700; }
+.seg{ display:flex; flex-wrap:wrap; gap:6px; }
+.seg button{ font:inherit; font-size:13px; color:var(--ink2); background:transparent; border:1px solid var(--line); border-radius:10px; padding:8px 12px; min-height:44px; cursor:pointer; text-align:left; }
+.seg button[aria-pressed="true"]{ background:var(--ink); color:var(--bg2); border-color:transparent; }
+.seg button small{ display:block; font-size:11px; opacity:.75; margin-top:2px; }
+.track{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--ink2); }
+.track input{ flex:1; max-width:260px; }
+
+/* 見本の画面 */
+.screens{ display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px; }
+.phone{ position:relative; border-radius:22px; overflow:hidden; border:1px solid var(--line); min-height:560px;
+  background:radial-gradient(75% 55% at 50% 42%, var(--bg1), var(--bg2)); display:flex; flex-direction:column; }
+.cap{ font-size:12px; color:var(--ink3); margin:0 0 6px 4px; }
+.board{ flex:1; display:flex; align-items:center; justify-content:center; min-height:160px; }
+.board i{ display:block; width:62%; aspect-ratio:1.5; border-radius:8px; background:linear-gradient(160deg,#6d4c37,#4a3326); transform:perspective(500px) rotateX(48deg); box-shadow:0 30px 40px rgba(0,0,0,.45); }
+
+.mincho{ font-family:var(--mincho),"Hiragino Mincho ProN","Yu Mincho",serif; font-weight:var(--mw); }
+.n{ font-family:var(--num); font-variant-numeric:tabular-nums; }
+
+/* ホーム */
+.hometop{ padding:28px 20px 0; text-align:center; }
+.hometitle{ margin:0; font-size:40px; letter-spacing:var(--track); }
+.homesub{ margin:10px auto 0; max-width:22em; font-size:13px; line-height:1.7; color:var(--ink2); }
+.homepanel{ background:var(--panel-solid); border-top:1px solid var(--line); border-radius:20px 20px 0 0; padding:14px 16px 16px; }
+.subh{ font-size:12px; color:var(--ink2); margin:0 0 6px; }
+.opps{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.opp{ border:1px solid var(--line); border-radius:12px; padding:10px 12px 11px; text-align:left; }
+.opp .nm{ display:block; font-size:19px; letter-spacing:.08em; }
+.opp .sp{ display:block; font-size:11.5px; color:var(--ink3); margin-top:2px; }
+.opp .sp i{ font-style:normal; white-space:nowrap; margin-right:1em; }
+.opp.sel{ border:2px solid var(--ink); padding:9px 11px 10px; background:var(--well); }
+.opp.sei{ grid-column:1 / -1; background:var(--ink); color:var(--bg2); border-color:transparent; }
+.opp.sei .sp{ color:var(--bg2); opacity:.75; }
+.opp.sei .nm{ font-size:24px; }
+.rec{ font-size:12px; color:var(--ink2); margin:10px 0 0; }
+.btn{ display:flex; align-items:center; justify-content:center; width:100%; margin-top:12px; min-height:52px; border-radius:12px; border:0; background:var(--ink); color:var(--bg2); font:inherit; font-weight:var(--gw); font-size:16px; }
+.label{ text-align:center; font-family:var(--num); font-size:10px; letter-spacing:.32em; color:var(--ink3); margin:12px 0 2px; text-transform:uppercase; }
+
+/* 対局中 */
+.top{ padding:12px 14px 0; }
+.players{ display:flex; justify-content:space-between; align-items:center; }
+.pl{ display:flex; align-items:center; gap:8px; font-size:15px; font-weight:var(--gw); }
+.pl.off{ opacity:.38; }
+.dot{ width:12px; height:12px; border-radius:50%; }
+.dot.red{ background:var(--red); } .dot.ivory{ background:var(--ivory); }
+.statusline{ text-align:center; font-size:12.5px; color:var(--ink2); margin-top:6px; }
+.evalrow{ display:flex; align-items:center; gap:8px; margin-top:8px; font-size:12px; color:var(--ink2); }
+.evtrack{ flex:1; height:6px; border-radius:3px; background:var(--ivory); overflow:hidden; }
+.evfill{ height:100%; width:64%; background:var(--red); }
+.info{ font-size:12px; color:var(--ink2); text-align:center; margin-top:6px; }
+.pegs{ display:grid; grid-template-columns:repeat(4, 34px); gap:6px; justify-content:center; margin:6px 0 0; }
+.pegs span{ height:34px; border-radius:8px; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--silver); }
+.pegs span.hit{ border-color:var(--silver); }
+.bottom{ display:flex; justify-content:space-around; padding:12px 0 18px; font-size:13px; color:var(--ink2); }
+
+/* 結果カード・振り返り */
+.result{ margin:0 14px 16px; background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:18px 16px 14px; -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
+.result .msg{ font-size:24px; letter-spacing:.06em; text-align:center; }
+.result .meta{ font-size:13px; color:var(--ink2); margin:6px 0 12px; text-align:center; }
+.row{ display:flex; gap:8px; }
+.row .b{ flex:1; min-height:46px; border-radius:12px; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-weight:var(--gw); font-size:15px; }
+.row .b.p{ background:var(--ink); color:var(--bg2); border-color:transparent; }
+.review{ margin:0 14px 12px; font-size:13.5px; line-height:1.7; color:var(--ink); text-align:center; }
+.review .step{ display:block; font-size:12px; color:var(--ink2); }
+.note{ color:var(--ink2); font-size:12px; line-height:1.7; margin:16px 0 0; }
+@media (max-width:520px){ body{ padding:16px; } .phone{ min-height:520px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>書体の見比べ</h1>
+  <p class="lead">方針: 物は暖かく、意味は冷たい(共有メモ §9 を文字に当てはめる)。タイトルと名前は個性のある明朝、画面の文字は静かなゴシック、数字と解析は細く桁がそろう欧文。下の3つを切り替えて、実際の画面の文字で比べてください。実機でも開けます。</p>
+
+  <div class="ctl">
+    <div>
+      <h2>明朝(タイトル・相手の名前・結果の見出し)</h2>
+      <div class="seg" id="segM"></div>
+    </div>
+    <div class="track">タイトルの字間 <input type="range" id="track" min="0" max="0.4" step="0.02" value="0.14"> <span id="trackV" class="n">0.14em</span></div>
+    <div>
+      <h2>ゴシック(画面の文字)</h2>
+      <div class="seg" id="segG"></div>
+    </div>
+    <div>
+      <h2>数字・解析</h2>
+      <div class="seg" id="segN"></div>
+    </div>
+  </div>
+
+  <div class="screens">
+    <div>
+      <p class="cap">ホーム</p>
+      <div class="phone">
+        <div class="hometop">
+          <h2 class="hometitle mincho">立体四目</h2>
+          <p class="homesub">4×4の柱に、玉を落として積む。<br>立体のどの向きでも、4つ並べば勝ち。</p>
+        </div>
+        <div class="board"><i></i></div>
+        <div class="homepanel">
+          <p class="subh">AIと対局</p>
+          <div class="opps">
+            <div class="opp"><span class="nm mincho">初級</span><span class="sp"><i><span class="n">2</span>手先まで読む</i><i>ときどき緩む</i></span></div>
+            <div class="opp"><span class="nm mincho">中級</span><span class="sp"><i><span class="n">4</span>手先まで読む</i></span></div>
+            <div class="opp sel" style="grid-column:1 / -1"><span class="nm mincho">上級</span><span class="sp"><i>定石を使い、<span class="n">1</span>手に約<span class="n">3</span>秒読む</i></span></div>
+            <div class="opp sei"><span class="nm mincho">最強</span><span class="sp"><i>定石を使い、<span class="n">1</span>手に約<span class="n">8</span>秒読む</i><i>現在の最高棋力</i></span></div>
+          </div>
+          <p class="rec">上級AIとの戦績　<span class="n">12</span>勝 <span class="n">8</span>敗 <span class="n">1</span>分</p>
+          <div class="btn">対局を始める</div>
+          <p class="label">KKT Works</p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="cap">対局中(解析の表示あり)</p>
+      <div class="phone">
+        <div class="top">
+          <div class="players">
+            <div class="pl"><span class="dot red"></span>朱</div>
+            <div class="pl off">象牙<span class="dot ivory"></span></div>
+          </div>
+          <div class="statusline">もう一度押して確定</div>
+          <div class="evalrow"><span class="evtrack"><span class="evfill" style="display:block"></span></span><span>朱やや有利</span></div>
+          <div class="info">おすすめは <span class="n">13</span> 番の棒</div>
+          <div class="pegs">
+            <span class="n">12</span><span class="n hit">13</span><span class="n">14</span><span class="n">15</span>
+            <span class="n">8</span><span class="n">9</span><span class="n">10</span><span class="n">11</span>
+            <span class="n">4</span><span class="n">5</span><span class="n">6</span><span class="n">7</span>
+            <span class="n">0</span><span class="n">1</span><span class="n">2</span><span class="n">3</span>
+          </div>
+        </div>
+        <div class="board"><i></i></div>
+        <div class="bottom"><span>待った</span><span>メニュー</span></div>
+      </div>
+    </div>
+
+    <div>
+      <p class="cap">決着と振り返り</p>
+      <div class="phone">
+        <div class="board"><i></i></div>
+        <p class="review"><span class="step"><span class="n">23</span>手目</span>ここから、相手の攻めが止めにくくなりました。</p>
+        <div class="result">
+          <div class="msg mincho">最強AIに勝ちました</div>
+          <div class="meta"><span class="n">31</span>手・同じ段の斜め・通算 <span class="n">3</span>勝 <span class="n">12</span>敗</div>
+          <div class="row"><div class="b p">再戦</div><div class="b">振り返る</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="note">数字の書体は、数字だけを包んだ部分(棒の番号・手数・戦績・秒数)と「KKT Works」に効きます。棒の番号は銀白で、意味の表示として冷たい側に置いています。この見本で書体は Google Fonts から読み込んでいますが、採用後はゲーム本体に必要な文字だけ切り出して同梱します。</p>
+</main>
+<script>
+(function(){
+  "use strict";
+  var root = document.documentElement.style;
+  var M = [
+    { name: "しっぽり明朝 600", note: "今の書体", f: '"Shippori Mincho"', w: 600 },
+    { name: "しっぽり明朝 800", note: "同じ書体の極太。見出し用", f: '"Shippori Mincho"', w: 800 },
+    { name: "しっぽり明朝 B1 800", note: "角が丸く、インク溜まり。活版の物っぽさ", f: '"Shippori Mincho B1"', w: 800 },
+    { name: "Zen Old Mincho 700", note: "伝統的で明快", f: '"Zen Old Mincho"', w: 700 },
+    { name: "Zen Old Mincho 900", note: "同じ書体の最も太い", f: '"Zen Old Mincho"', w: 900 }
+  ];
+  var G = [
+    { name: "Zen 角ゴシック New", note: "今の書体", f: '"Zen Kaku Gothic New"', w: 700 },
+    { name: "IBM Plex Sans JP", note: "細身で理知的", f: '"IBM Plex Sans JP"', w: 600 },
+    { name: "Noto Sans JP", note: "癖がなく標準的", f: '"Noto Sans JP"', w: 700 },
+    { name: "BIZ UDPゴシック", note: "小さい文字でも読みやすい", f: '"BIZ UDPGothic"', w: 700 }
+  ];
+  var N = [
+    { name: "和文のまま", note: "今の状態", f: "inherit" },
+    { name: "IBM Plex Mono", note: "等幅。機械の正確さ", f: '"IBM Plex Mono"' },
+    { name: "Spline Sans Mono", note: "等幅。少し柔らかい", f: '"Spline Sans Mono"' },
+    { name: "DM Mono", note: "等幅。細く静か", f: '"DM Mono"' },
+    { name: "Inter", note: "等幅ではないが桁はそろう", f: '"Inter"' }
+  ];
+  function seg(id, list, apply){
+    var el = document.getElementById(id);
+    list.forEach(function(c, i){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.innerHTML = c.name + "<small>" + c.note + "</small>";
+      b.setAttribute("aria-pressed", i === 0 ? "true" : "false");
+      b.addEventListener("click", function(){
+        Array.prototype.forEach.call(el.children, function(x){ x.setAttribute("aria-pressed", "false"); });
+        b.setAttribute("aria-pressed", "true");
+        apply(c);
+      });
+      el.appendChild(b);
+    });
+  }
+  seg("segM", M, function(c){ root.setProperty("--mincho", c.f); root.setProperty("--mw", c.w); });
+  seg("segG", G, function(c){ root.setProperty("--gothic", c.f); root.setProperty("--gw", c.w); });
+  seg("segN", N, function(c){ root.setProperty("--num", c.f === "inherit" ? "var(--gothic)" : c.f + ", var(--gothic), sans-serif"); });
+  var tr = document.getElementById("track"), tv = document.getElementById("trackV");
+  tr.addEventListener("input", function(){ root.setProperty("--track", tr.value + "em"); tv.textContent = Number(tr.value).toFixed(2) + "em"; });
+})();
+</script>
+</body>
+</html>
