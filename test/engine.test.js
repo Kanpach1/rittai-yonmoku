@@ -6,7 +6,7 @@ const vm = require('vm');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const src = html.match(/<script id="engineSrc">([\s\S]*?)<\/script>/)[1];
-const ctx = { module: { exports: {} }, performance: { now: () => Date.now() }, Math, Date };
+const ctx = { module: { exports: {} }, performance: { now: () => Date.now() }, Math, Date, atob };
 vm.createContext(ctx);
 vm.runInContext(src + '\nthis.BOOK = BOOK;', ctx);
 const Score4 = ctx.module.exports, BOOK = ctx.BOOK;
@@ -56,5 +56,24 @@ const key = e.bookKey();
 r = e.think({ algo: 'mcts', timeMs: 300 });
 assert(r.nodes > 100 && r.move >= 0 && r.move < 16);
 assert.strictEqual(e.bookKey(), key); assert.strictEqual(e.stack.length, 3);
+
+// WebAssembly エンジン: 読み込めていて、JS エンジンと同じ詰み・受けを見つける
+assert(Score4.W, 'WebAssembly エンジンが読み込めている');
+for (const js of [false, true]) {
+  e.load([0, 4, 1, 5, 2, 6]);
+  r = e.think({ timeMs: 300, maxDepth: 60, js });
+  assert.strictEqual(r.move, 3); assert(r.score > WIN - 200);
+  e.load([0, 4, 1, 5, 2]);
+  assert.strictEqual(e.think({ timeMs: 300, maxDepth: 60, js }).move, 3);
+}
+e.load([5, 6, 9, 10]);
+r = e.think({ timeMs: 300, maxDepth: 60 });
+assert.strictEqual(r.engine, 'wasm'); assert(r.depth >= 4 && r.nodes > 1000);
+// 深さを固定すれば JS と同じ評価値になる（探索の中身が同じ）
+for (const mv of [[], [12, 3, 15, 0], [5, 6, 9, 10, 0, 15]]) {
+  e.load(mv); const a = e.think({ timeMs: 1e9, maxDepth: 5 });
+  e.load(mv); const b = e.think({ timeMs: 1e9, maxDepth: 5, js: true });
+  assert(Math.abs(a.score - b.score) < 0.01, `深さ5の評価値が一致しない: ${mv} wasm=${a.score} js=${b.score}`);
+}
 
 console.log(`all tests passed (定石 ${n} 局面)`);
