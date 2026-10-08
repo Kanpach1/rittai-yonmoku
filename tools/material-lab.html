@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>格子樹脂 素材試作</title>
 <style>
-:root{ --bg:#0a0d10; --panel:#161c21; --ink:#e8e3d6; --ink2:#9aa6ad; --line:rgba(255,255,255,.12); }
+:root{ --bg:#0a0d10; --panel:#161c21; --ink:#e8e3d6; --ink2:#9aa6ad; --line:rgba(255,255,255,.12); --on:rgba(255,255,255,.14); }
 *{ box-sizing:border-box; }
 html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); font-family:"Hiragino Kaku Gothic ProN",system-ui,sans-serif; }
 #wrap{ display:flex; flex-direction:column; height:100%; }
 #view{ position:relative; flex:1; min-height:300px; }
 #view canvas{ display:block; width:100%; height:100%; touch-action:none; cursor:grab; }
 .labels{ position:absolute; inset:0; pointer-events:none; font-size:12px; color:var(--ink2); }
-.labels span{ position:absolute; transform:translate(-50%,0); white-space:nowrap; }
-#panel{ padding:12px 16px 16px; background:var(--panel); border-top:1px solid var(--line); overflow:auto; max-height:46%; }
+.labels span{ position:absolute; transform:translate(-50%,-50%); white-space:nowrap; }
+#panel{ padding:12px 16px 16px; background:var(--panel); border-top:1px solid var(--line); overflow:auto; max-height:50%; }
 .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:6px 16px; }
 label{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink2); }
 label span.n{ width:112px; flex:none; }
@@ -21,7 +21,11 @@ label output{ width:40px; text-align:right; color:var(--ink); font-variant-numer
 input[type=range]{ flex:1; min-width:0; }
 .bar{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; align-items:center; }
 button{ font:inherit; font-size:13px; color:var(--ink); background:transparent; border:1px solid var(--line); border-radius:8px; padding:8px 12px; min-height:40px; }
+button[aria-pressed="true"]{ background:var(--on); border-color:rgba(255,255,255,.3); }
 button:active{ background:rgba(255,255,255,.08); }
+.pairs{ display:grid; grid-template-columns:auto repeat(3, 1fr); gap:4px; align-items:center; font-size:11px; color:var(--ink2); margin-bottom:10px; max-width:420px; }
+.pairs button{ min-height:36px; padding:4px 6px; font-size:11px; }
+.sw{ display:inline-block; width:10px; height:10px; border-radius:50%; vertical-align:-1px; margin-right:3px; }
 .note{ font-size:11px; color:var(--ink2); margin-top:8px; line-height:1.6; }
 </style>
 </head>
@@ -30,29 +34,46 @@ button:active{ background:rgba(255,255,255,.08); }
   <div id="view"><div class="labels" id="labels"></div></div>
   <div id="panel">
     <div class="bar">
+      <button data-mode="states" type="button" aria-pressed="true">状態比較</button>
+      <button data-mode="sparse" type="button">Sparse 8球</button>
+      <button data-mode="mid" type="button">Midgame 23〜24球</button>
+      <button data-mode="dense" type="button">Dense 36〜37球</button>
+      <button data-mode="adv" type="button">Adversarial</button>
+      <label style="flex:none"><input type="checkbox" id="gray"> 白黒</label>
+      <label style="flex:none"><input type="checkbox" id="spin"> 自動回転</label>
+    </div>
+    <div class="pairs" id="pairs"></div>
+    <div class="bar" id="presets"></div>
+    <div class="bar">
       <button id="playImpact" type="button">Impact 再生(50ms)</button>
       <button id="playActive" type="button">Active 再生(0→1 200ms)</button>
       <label style="flex:none"><input type="checkbox" id="slow"> スロー ×8</label>
-      <label style="flex:none"><input type="checkbox" id="spin"> 自動回転</label>
-      <label style="flex:none"><input type="checkbox" id="current"> 2番目を現行のゲーム色に</label>
+      <label style="flex:none" id="lineSideWrap">最後に四目を作る側: <select id="lineSide"><option value="0">朱</option><option value="1">象牙</option></select></label>
     </div>
     <div class="grid" id="sliders"></div>
-    <p class="note">行: 朱1〜3・象牙1〜3(色は16進数どおりの見た目になるよう変換済み)。列: 左から Normal・Impact・Active。核と微細構造は両色共通の銀白。パラメータは朱・象牙で共通。盤はドラッグで回転(内部の視差の確認用)。<br>
-    Active は 0 で核が生まれ始め、約0.2〜0.25 で核が立ち、0.25〜0.9 で微細構造が浮かぶ(200ms 再生なら 核 0ms → 構造 50ms〜 → 完全活性 約180ms)。</p>
+    <p class="note">朱 R1〜R3 × 象牙 I1〜I3 の9組から1組を選んで比べる(色は16進数どおりの見た目になるよう変換済み)。背景 #0C1116・胡桃 #493229・黒鉄 #202528。<br>
+    状態比較: 上が朱・下が象牙、左から Normal・Impact・Active。<br>
+    Sparse / Midgame / Dense は、重力ルールに沿って朱から交互に指した固定の棋譜を再生した局面(途中で四目はできない)。Midgame と Dense は最後の一手で四目が完成し、その4球を Active にする(どちらの色で終わるか切り替え可)。<br>
+    Adversarial は見分けにくさを意図して作った人工の配置(合法局面ではない): 朱を光の当たらない奥・低い段・柱の陰・木の縁に、象牙を手前の高い段の光の当たる側に置く。<br>
+    核と微細構造は両色共通の銀白。Active は 0 で核が生まれ始め、約0.2で核が立ち、0.25〜0.9 で微細構造が浮かぶ(200ms 再生なら 核 0ms → 構造 50ms〜 → 完全活性 約180ms)。</p>
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function(){
   "use strict";
-  // ゲーム本体と同じ寸法・色・材質の基本値(index.html の R, RED, IVORY, makeBall)
-  var R = 0.4, RED = 0xa8321f, IVORY = 0xe3d6bb, PEGH = 3.7;
-  // 色候補(見た目の16進数 = sRGB)。three.js r128 は 16進数をそのまま線形として扱うので、ここでは線形に変換して使う
-  var CANDS = [
-    { n: "朱1", hex: "#C94F36", r: 0.42 }, { n: "朱2", hex: "#D15438", r: 0.42 }, { n: "朱3", hex: "#D95A3C", r: 0.42 },
-    { n: "象牙1", hex: "#E4DCC8", r: 0.7 }, { n: "象牙2", hex: "#E9E1D0", r: 0.7 }, { n: "象牙3", hex: "#EEE7D8", r: 0.7 }
-  ];
-  function srgb(hex){ return new THREE.Color(hex).convertSRGBToLinear(); }
+  // ゲーム本体と同じ寸法(index.html の R, S, DZ, PEGH)
+  var R = 0.4, S = 1.35, DZ = 0.82, PEGH = 3.7;
+  function srgb(hex){ return new THREE.Color(hex).convertSRGBToLinear(); }   // 16進数(sRGB)を線形に。r128 は 16進数をそのまま線形として扱うため
+  // 色候補。朱はつやを少し強く、象牙は少しマットにして、2色の視覚的な重さを近づける
+  var REDS = [{ n: "R1", hex: "#CA5038" }, { n: "R2", hex: "#D45A3D" }, { n: "R3", hex: "#DC6242" }];
+  var IVS  = [{ n: "I1", hex: "#D8CDB7" }, { n: "I2", hex: "#DED3BC" }, { n: "I3", hex: "#E4DAC5" }];
+  var MATS = [{ n: "材質A 0.42/0.70", r: [0.42, 0.70] }, { n: "材質B 0.46/0.62", r: [0.46, 0.62] }, { n: "材質C 0.50/0.58", r: [0.50, 0.58] }];   // 朱/象牙の粗さ
+  var IRONS = [{ n: "K1 #202528", hex: "#202528" }, { n: "K2 #292F32", hex: "#292F32" }, { n: "K3 #32383B", hex: "#32383B" }];
+  var PEGR = [{ n: "柱のつや 0.60", r: 0.6 }, { n: "柱のつや 0.40", r: 0.4 }];   // 粗さが低いほど輪郭に細い反射が立つ
+  var SILVERS = [{ n: "S1 中性 #D3D7D8", hex: "#D3D7D8" }, { n: "S2 青緑 #C8D6D9", hex: "#C8D6D9" }, { n: "S3 青 #C3CFDD", hex: "#C3CFDD" }];
+  var ROUGH = MATS[1].r, silverLin = new THREE.Color();
+  var sel = { r: 1, i: 1 };
 
   /* ---------- パラメータ ---------- */
   var P = {
@@ -81,22 +102,22 @@ button:active{ background:rgba(255,255,255,.08); }
   renderer.outputEncoding = THREE.sRGBEncoding;
   view.insertBefore(renderer.domElement, view.firstChild);
   var scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x10151a);
+  scene.background = srgb("#0C1116");
   var camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
   // 光はゲーム本体と同じ構成
   scene.add(new THREE.HemisphereLight(0xfff2e2, 0x3a424a, 0.72));
   var lamp = new THREE.SpotLight(0xffe6c4, 1.25, 45, 0.6, 0.85, 1); lamp.position.set(2.2, 13, 4.2); scene.add(lamp); scene.add(lamp.target);
   var rim = new THREE.DirectionalLight(0x9fb7ff, 0.2); rim.position.set(-7, 5, -6); scene.add(rim);
   var fillL = new THREE.DirectionalLight(0xffffff, 0.28); fillL.position.set(-3, 6, 9); scene.add(fillL);
-  var board = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.2, 7.2), new THREE.MeshStandardMaterial({ color: srgb("#5b3b27"), roughness: 0.78 }));   // ゲームの盤(木目テクスチャの基調色)
-  board.position.y = -0.1; scene.add(board);
-  var pegMat = new THREE.MeshStandardMaterial({ color: 0x1f2226, metalness: 0.5, roughness: 0.6 });
+  var woodMat = new THREE.MeshStandardMaterial({ color: srgb("#493229"), roughness: 0.78 });
+  var pegMat = new THREE.MeshStandardMaterial({ color: srgb("#292F32"), metalness: 0.5, roughness: 0.6 });
+  var ballGeo = new THREE.SphereGeometry(R, 48, 36);
 
   /* ---------- 格子樹脂: MeshStandardMaterial に内部の計算だけを足す ---------- */
   // 表面の光(サテン)は標準のまま。内部は「表面で屈折して球内へ入った視線」に沿って 16 点調べる
   var FRAG_HEAD = [
     "uniform vec3 uCamObj;", "uniform float uR, uActive, uImpact, uIntensity, uCoreR, uLatVis, uLatScale, uRefract;",
-    "uniform vec3 uContact;", "varying vec3 vObj;",
+    "uniform vec3 uContact, uSilver;", "varying vec3 vObj;",
     // 準結晶的な微細構造: 正二十面体の 6 方向の平面波の和。規則的な立方格子にはならない
     "float quasi(vec3 p){",
     "  const float g = 1.618034;",
@@ -129,7 +150,7 @@ button:active{ background:rgba(255,255,255,.08); }
     "  float stepLen = tEnd / 16.0 / uR;",
     "  float coreV = coreAcc * stepLen * coreA, latV = latAcc * stepLen * latA * uLatVis, waveV = waveAcc * stepLen;",
     "  float facing = pow(max(dot(n, -rd), 0.0), 0.6);",          // 正面ほど内部が見え、縁は表面のまま
-    "  vec3 silver = vec3(0.86, 0.92, 0.94);",
+    "  vec3 silver = uSilver;",
     // 核と微細構造は、朱・象牙とも共通の銀白(同じ素材が同じ物理現象を起こす)。表面の色は残る
     "  vec3 coreCol = silver;",
     "  vec3 inner = (coreCol * coreV * 0.7 * 8.0 + silver * latV * 0.3 * 6.0) * uIntensity * facing;",
@@ -149,7 +170,8 @@ button:active{ background:rgba(255,255,255,.08); }
     m.userData.u = {
       uCamObj: { value: new THREE.Vector3() }, uR: { value: R }, uActive: { value: 0 }, uImpact: { value: -1 },
       uIntensity: { value: 1 }, uCoreR: { value: 0.3 }, uLatVis: { value: 0.5 }, uLatScale: { value: 26 }, uRefract: { value: 0.35 },
-      uContact: { value: new THREE.Vector3(0, -1, 0) }   // 接触点(物体座標の単位ベクトル)。着地なら真下
+      uContact: { value: new THREE.Vector3(0, -1, 0) },   // 接触点(物体座標の単位ベクトル)。着地なら真下
+      uSilver: { value: new THREE.Color(0.86, 0.92, 0.94) }
     };
     m.onBeforeCompile = function(sh){
       Object.assign(sh.uniforms, m.userData.u);
@@ -162,41 +184,155 @@ button:active{ background:rgba(255,255,255,.08); }
     return m;
   }
 
-  /* ---------- 色候補(行) × Normal / Impact / Active(列) ---------- */
-  var COLS = ["Normal", "Impact", "Active"], balls = [], rows = [];
-  var labels = document.getElementById("labels");
-  CANDS.forEach(function(cd, row){
-    var z = (row - 2.5) * 1.1, rowBalls = [];
-    COLS.forEach(function(st, col){
-      var x = (col - 1) * 1.35;
-      var peg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 1.2, 16), pegMat); peg.position.set(x, 0.6, z); scene.add(peg);
-      var m = latticeMaterial(srgb(cd.hex), cd.r);
-      var ball = new THREE.Mesh(new THREE.SphereGeometry(R, 64, 48), m);
-      ball.position.set(x, R + 0.02, z); scene.add(ball);
-      var lab = null;
-      if (col === 0) { lab = document.createElement("span"); lab.textContent = cd.n + " " + cd.hex; labels.appendChild(lab); }
-      else if (row === 0) { lab = document.createElement("span"); lab.textContent = st; labels.appendChild(lab); }
-      if (row === 0 && col === 0) { var h = document.createElement("span"); h.textContent = "Normal"; labels.appendChild(h); balls.push({ mesh: ball, mat: null, state: st, label: h, head: true }); }
-      var b = { mesh: ball, mat: m, state: st, label: lab, rowLabel: col === 0 };
-      balls.push(b); rowBalls.push(b);
+  /* ---------- 表示: 状態比較 と 4つの局面 ---------- */
+  var groups = { states: new THREE.Group(), base: new THREE.Group() }, boardSets = {};
+  scene.add(groups.states); scene.add(groups.base);
+  var balls = [], labels = document.getElementById("labels");
+  function addBall(group, side, state, x, y, z, label){
+    var m = latticeMaterial(srgb("#000000"), ROUGH[side]);
+    var mesh = new THREE.Mesh(ballGeo, m); mesh.position.set(x, y, z); group.add(mesh);
+    var lab = null;
+    if (label) { lab = document.createElement("span"); lab.textContent = label; labels.appendChild(lab); }
+    var b = { mesh: mesh, mat: m, side: side, state: state, label: lab, group: group };
+    balls.push(b); return b;
+  }
+  (function buildStates(){
+    var g = groups.states;
+    var wood = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.2, 3.0), woodMat); wood.position.y = -0.1; g.add(wood);
+    ["Normal", "Impact", "Active"].forEach(function(st, col){
+      [0, 1].forEach(function(side){
+        var x = (col - 1) * 1.35, z = (side - 0.5) * 1.35;
+        var peg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 1.6, 16), pegMat); peg.position.set(x, 0.8, z); g.add(peg);
+        addBall(g, side, st, x, R + 0.02, z, side === 0 ? st : null);
+      });
     });
-    rows.push({ cd: cd, balls: rowBalls });
-  });
-  // 比較用: 2番目の候補を、今のゲームの見え方(16進数をそのまま線形として使った色)に差し替える
-  document.getElementById("current").addEventListener("change", function(e){
-    [[1, RED, "朱 現行(ゲーム)"], [4, IVORY, "象牙 現行(ゲーム)"]].forEach(function(a){
-      var r = rows[a[0]];
-      r.balls.forEach(function(b){ if (e.target.checked) b.mat.color.setHex(a[1]); else b.mat.color.copy(srgb(r.cd.hex)); });
-      r.balls[0].label.textContent = e.target.checked ? a[2] : r.cd.n + " " + r.cd.hex;
+  })();
+  (function buildBase(){
+    var g = groups.base, BW = 4 * S + 0.5;
+    var wood = new THREE.Mesh(new THREE.BoxGeometry(BW, 0.4, BW), woodMat); wood.position.y = -0.2; g.add(wood);
+    for (var p = 0; p < 16; p++) {
+      var peg = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, PEGH, 16), pegMat);
+      peg.position.set((p % 4 - 1.5) * S, PEGH / 2, (Math.floor(p / 4) - 1.5) * S); g.add(peg);
+    }
+  })();
+
+  // 76本の勝ち筋(座標は ゲームと同じ cell = 棒 + 16*段、棒 = x + 4*y)
+  var LINES = [];
+  for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) for (var dz = -1; dz <= 1; dz++) {
+    if (!dx && !dy && !dz) continue;
+    var f = dx || dy || dz; if (f < 0) continue;
+    for (var x0 = 0; x0 < 4; x0++) for (var y0 = 0; y0 < 4; y0++) for (var z0 = 0; z0 < 4; z0++) {
+      var ex = x0 + 3 * dx, ey = y0 + 3 * dy, ez = z0 + 3 * dz;
+      if (ex < 0 || ex > 3 || ey < 0 || ey > 3 || ez < 0 || ez > 3) continue;
+      var ln = []; for (var k = 0; k < 4; k++) ln.push((x0 + k * dx) + 4 * (y0 + k * dy) + 16 * (z0 + k * dz));
+      LINES.push(ln);
+    }
+  }
+  // 固定の乱数で、朱(0)から交互に重力ルールどおり指す。途中で四目は作らない。
+  // winSide >= 0 なら、その色の手番で四目が作れるようになるまで指し進め、最後の一手で四目を完成させる
+  function legalGame(seed, n, winSide){
+    var sd = seed; function rnd(){ sd = (sd * 16807) % 2147483647; return sd / 2147483647; }
+    var bd = new Array(64).fill(-1), h = new Array(16).fill(0), mv = [], side = 0;
+    function winLine(c, sd2){ for (var i = 0; i < LINES.length; i++) { var L = LINES[i]; if (L.indexOf(c) < 0) continue; if (L.every(function(q){ return q === c || bd[q] === sd2; })) return L; } return null; }
+    function play(p){ var c = p + 16 * h[p]++; bd[c] = side; mv.push({ c: c, side: side }); side ^= 1; return c; }
+    for (var guard = 0; guard < 64; guard++) {
+      var free = [], wins = [];
+      for (var p = 0; p < 16; p++) if (h[p] < 4) { if (winLine(p + 16 * h[p], side)) wins.push(p); else free.push(p); }
+      if (mv.length >= n && winSide < 0) break;
+      if (mv.length >= n && side === winSide && wins.length) {
+        var L = winLine(wins[0] + 16 * h[wins[0]], side); play(wins[0]);
+        return { moves: mv, win: L };
+      }
+      if (!free.length) return null;
+      play(free[Math.floor(rnd() * free.length)]);
+    }
+    return winSide < 0 ? { moves: mv, win: null } : null;
+  }
+  function findGame(n, winSide){ for (var sd = 7; sd < 4000; sd++) { var r = legalGame(sd, n, winSide); if (r && r.moves.length <= n + 4) return r; } return null; }
+  function buildSet(key, game){
+    var g = new THREE.Group(); scene.add(g); boardSets[key] = g;
+    game.moves.forEach(function(m){
+      var p = m.c & 15, z = m.c >> 4, win = !!(game.win && game.win.indexOf(m.c) >= 0);
+      addBall(g, m.side, win ? "Active" : "Normal", (p % 4 - 1.5) * S, R + 0.02 + z * DZ, (Math.floor(p / 4) - 1.5) * S, null);
+    });
+    g.userData.count = game.moves.length;
+  }
+  buildSet("sparse", findGame(8, -1));
+  [0, 1].forEach(function(ws){ buildSet("mid" + ws, findGame(21, ws)); buildSet("dense" + ws, findGame(35, ws)); });
+  // Adversarial: 人工の配置(合法局面ではない)。光は右手前の上(ゲームと同じ)から来るので、左奥が暗い
+  (function buildAdv(){
+    var g = new THREE.Group(); scene.add(g); boardSets.adv = g;
+    var cells = [
+      // 朱: 左奥・低い段・木の縁(暗部、木の赤茶と隣接)
+      [0, 0, 0], [1, 0, 0], [4, 0, 0], [8, 0, 0], [0, 1, 0], [4, 1, 0],
+      // 朱: 手前の象牙の柱の真後ろ(柱と重なる)
+      [10, 0, 0], [10, 1, 0], [11, 0, 0],
+      // 象牙: 手前・右・高い段(強いハイライト)
+      [14, 0, 1], [14, 1, 1], [14, 2, 1], [14, 3, 1], [15, 0, 1], [15, 1, 1], [15, 2, 1], [13, 0, 1], [13, 1, 1], [13, 2, 1],
+      // 混在: 奥に朱、その手前に象牙
+      [2, 0, 0], [2, 1, 0], [6, 0, 1], [6, 1, 1], [7, 0, 0], [3, 0, 1]
+    ];
+    cells.forEach(function(c){ addBall(g, c[2], "Normal", (c[0] % 4 - 1.5) * S, R + 0.02 + c[1] * DZ, (Math.floor(c[0] / 4) - 1.5) * S, null); });
+  })();
+
+  /* ---------- 9組の選択 ---------- */
+  var pairsEl = document.getElementById("pairs"), pairBtns = [];
+  pairsEl.appendChild(document.createElement("span"));
+  IVS.forEach(function(iv){ var h = document.createElement("span"); h.innerHTML = '<i class="sw" style="background:' + iv.hex + '"></i>' + iv.n + " " + iv.hex; pairsEl.appendChild(h); });
+  REDS.forEach(function(rd, ri){
+    var h = document.createElement("span"); h.innerHTML = '<i class="sw" style="background:' + rd.hex + '"></i>' + rd.n + " " + rd.hex; pairsEl.appendChild(h);
+    IVS.forEach(function(iv, ii){
+      var b = document.createElement("button"); b.type = "button"; b.textContent = rd.n + "×" + iv.n;
+      b.addEventListener("click", function(){ sel = { r: ri, i: ii }; applyColors(); });
+      pairsEl.appendChild(b); pairBtns.push({ el: b, r: ri, i: ii });
     });
   });
+  var lineSide = 0, cur = { mat: 1, iron: 1, pegr: 0, silver: 1 };
+  document.getElementById("lineSide").addEventListener("change", function(e){ lineSide = +e.target.value; setMode(mode); });
+  function applyColors(){
+    var cols = [srgb(REDS[sel.r].hex), srgb(IVS[sel.i].hex)];
+    ROUGH = MATS[cur.mat].r;
+    silverLin.copy(srgb(SILVERS[cur.silver].hex));
+    balls.forEach(function(b){
+      b.mat.color.copy(cols[b.side]); b.mat.roughness = ROUGH[b.side];
+      b.mat.userData.u.uSilver.value.copy(silverLin);
+    });
+    pegMat.color.copy(srgb(IRONS[cur.iron].hex)); pegMat.roughness = PEGR[cur.pegr].r;
+    pairBtns.forEach(function(pb){ pb.el.setAttribute("aria-pressed", String(pb.r === sel.r && pb.i === sel.i)); });
+    presetBtns.forEach(function(pb){ pb.el.setAttribute("aria-pressed", String(cur[pb.key] === pb.idx)); });
+  }
+  // 材質・黒鉄・柱のつや・銀白の候補ボタン
+  var presetsEl = document.getElementById("presets"), presetBtns = [];
+  [["mat", MATS], ["iron", IRONS], ["pegr", PEGR], ["silver", SILVERS]].forEach(function(grp){
+    grp[1].forEach(function(o, idx){
+      var b = document.createElement("button"); b.type = "button"; b.textContent = o.n;
+      b.addEventListener("click", function(){ cur[grp[0]] = idx; applyColors(); });
+      presetsEl.appendChild(b); presetBtns.push({ el: b, key: grp[0], idx: idx });
+    });
+  });
+  applyColors();
+
+  /* ---------- 表示の切り替え・白黒 ---------- */
+  var mode = "states";
+  function setMode(m){
+    mode = m;
+    var key = m === "mid" || m === "dense" ? m + lineSide : m;
+    groups.states.visible = m === "states"; groups.base.visible = m !== "states";
+    Object.keys(boardSets).forEach(function(k){ boardSets[k].visible = k === key; });
+    balls.forEach(function(b){ if (b.label) b.label.style.display = b.group.visible ? "" : "none"; });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-mode]"), function(bt){ bt.setAttribute("aria-pressed", String(bt.dataset.mode === m)); });
+    document.getElementById("lineSideWrap").style.visibility = m === "mid" || m === "dense" ? "" : "hidden";
+    resize();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("[data-mode]"), function(bt){ bt.addEventListener("click", function(){ setMode(bt.dataset.mode); }); });
+  document.getElementById("gray").addEventListener("change", function(e){ renderer.domElement.style.filter = e.target.checked ? "grayscale(1)" : ""; });
 
   /* ---------- カメラ(ドラッグで回転) ---------- */
-  var theta = 0.0, phi = 0.78, radius = 9, spin = false, drag = null;
+  var theta = 0.35, phi = 1.0, radius = 7, spin = false, drag = null;
   function updateCam(){
-    var sp = Math.sin(phi);
-    camera.position.set(radius * sp * Math.sin(theta), radius * Math.cos(phi) + 0.3, radius * sp * Math.cos(theta));
-    camera.lookAt(0, 0.2, 0);
+    var sp = Math.sin(phi), ty = mode !== "states" ? 1.5 : 0.35;
+    camera.position.set(radius * sp * Math.sin(theta), ty + radius * Math.cos(phi), radius * sp * Math.cos(theta));
+    camera.lookAt(0, ty, 0);
   }
   var cv = renderer.domElement;
   cv.addEventListener("pointerdown", function(e){ drag = { x: e.clientX, y: e.clientY }; try { cv.setPointerCapture(e.pointerId); } catch (_) {} });
@@ -215,13 +351,14 @@ button:active{ background:rgba(255,255,255,.08); }
   document.getElementById("playActive").addEventListener("click", function(){ anim = { key: "activation", t0: performance.now(), ms: 200 * slowK() }; });
 
   function resize(){
-    var w = view.clientWidth, h = view.clientHeight;
+    var w = view.clientWidth, h = view.clientHeight, tall = w / h < 1;
     renderer.setSize(w, h, false); camera.aspect = w / h;
-    radius = w / h < 1 ? 17 : 11;
+    radius = mode !== "states" ? (tall ? 24 : 15) : (tall ? 11 : 7);
+    if (mode !== "states") phi = 0.95;
     camera.updateProjectionMatrix();
   }
   window.addEventListener("resize", resize);
-  resize();
+  setMode("states");
 
   var tmp = new THREE.Vector3(), last = performance.now();
   function frame(t){
@@ -234,11 +371,7 @@ button:active{ background:rgba(255,255,255,.08); }
       if (k >= 1) anim = null;
     }
     balls.forEach(function(b){
-      if (b.head) {   // 列見出し(左の列)
-        tmp.copy(b.mesh.position); tmp.z -= R * 1.6; tmp.project(camera);
-        b.label.style.left = ((tmp.x + 1) / 2 * view.clientWidth) + "px"; b.label.style.top = ((1 - tmp.y) / 2 * view.clientHeight) + "px";
-        return;
-      }
+      if (!b.group.visible) return;   // 表示中のものだけ更新
       var u = b.mat.userData.u;
       u.uIntensity.value = P.intensity.v; u.uCoreR.value = P.coreR.v; u.uLatVis.value = P.latVis.v;
       u.uLatScale.value = P.latScale.v; u.uRefract.value = P.refract.v;
@@ -246,14 +379,10 @@ button:active{ background:rgba(255,255,255,.08); }
       u.uImpact.value = b.state === "Impact" ? (P.impact.v >= 1 ? -1 : P.impact.v) : -1;
       b.mesh.updateMatrixWorld();
       u.uCamObj.value.copy(b.mesh.worldToLocal(tmp.copy(camera.position)));
-      // ラベル: 左の列は玉の左に色名、最前列以外の見出しは玉の奥に
-      if (b.label) {
-        tmp.copy(b.mesh.position);
-        if (b.rowLabel) tmp.x -= R * 1.3; else tmp.z -= R * 1.6;
-        tmp.project(camera);
+      if (b.label) {   // 列の見出しを、朱の玉の奥に
+        tmp.copy(b.mesh.position); tmp.z -= R * 1.8; tmp.project(camera);
         b.label.style.left = ((tmp.x + 1) / 2 * view.clientWidth) + "px";
         b.label.style.top = ((1 - tmp.y) / 2 * view.clientHeight) + "px";
-        b.label.style.transform = b.rowLabel ? "translate(-100%,-50%)" : "translate(-50%,-50%)";
       }
     });
     renderer.render(scene, camera);
