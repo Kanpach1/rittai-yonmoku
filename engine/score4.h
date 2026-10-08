@@ -98,7 +98,7 @@ static inline u64 threatCells(u64 b) {
 static inline u64 groundOf(u64 occ) { return ((occ << 16) | 0xFFFFULL) & ~occ; }
 
 // ---------------- 置換表 ----------------
-struct TTE { u64 b0, b1; float v; signed char d, f, m, pad; };
+struct TTE { u64 b0, b1; float v; signed char d, f, m, gen; };   // gen: 何手目の思考で書いたか(optKeepTT)
 static inline u32 ttIndex(u64 b0, u64 b1, int bits) {
   u64 h = b0 * 0x9E3779B97F4A7C15ULL ^ (b1 + 0x632BE59BD9B4E019ULL) * 0xC2B2AE3D27D4EB4FULL;
   h ^= h >> 29;
@@ -149,6 +149,13 @@ struct Engine {
   bool optSym = true;     // 置換表で対称な局面を同一視する（対戦で勝率65%）
   bool optKiller = false; // 同じ深さでβカットした手を先に読む（効果なし）
   bool optLMR = false;    // 後ろの順番の手は1手浅く読み、良さそうなら読み直す（効果なし）
+  bool optKeepTT = false; // 置換表を手ごとに消さず、前の手で読んだ結果を使う
+  bool optRootPVS = false; // ルートでも2つ目以降の手はまず狭い窓で読む
+  bool optDeepTT = false; // 置換表は、同じ思考の中では深く読んだ結果を浅い結果で上書きしない
+  signed char gen = 0;
+  // 決勝点の偶奇による詰み(zugzwang)を盤全体で見る。後手は相手の上に置き返して偶数段を取れるので、
+  // 先手は奇数段(z=0,2)、後手は偶数段(z=1,3)の「列で一番下の」決勝点が有効。片方だけが持つなら大きく有利
+  double parityK = 0;
   signed char killer[70][2];
   void setTT(TTE *p, int bits) { tt = p; ttBits = bits; }
   u64 bb[2];      // [0]=先手, [1]=後手
@@ -194,6 +201,7 @@ struct Engine {
       s[k] += 100.0 / plies;
     }
     u64 thr[2] = { t0, t1 }, ta = t0 | t1;
+    int goodCols[2] = { 0, 0 };   // 有効な決勝点を一番下に持つ列の数
     for (int p = 0; p < 16; p++) {
       if (!(ta & (0x0001000100010001ULL << p))) continue;
       int lowest = 0, prev = 0;
@@ -208,6 +216,7 @@ struct Engine {
             if (!lowest) {
               bool good = (kk == 0) ? (z % 2 == 0) : (z % 2 == 1);
               w = good ? 260 : 130;
+              if (good && !(f & (1 << (1 - kk)))) goodCols[kk]++;
             } else if ((lowest & (1 << (1 - kk))) && !(lowest & bit)) {
               w = 10;
             } else {
@@ -220,6 +229,10 @@ struct Engine {
         }
         prev = f;
       }
+    }
+    if (parityK > 0) {
+      if (goodCols[0] && !goodCols[1]) s[0] += parityK;
+      else if (goodCols[1] && !goodCols[0]) s[1] += parityK;
     }
     double v = s[0] - s[1];
     return me == 0 ? v : -v;
@@ -261,6 +274,7 @@ struct Engine {
       ttMove = SY.inv[sym][(int)e.m];
       if (e.d >= depth) {
         double ev = e.v;
+        if (ev > WIN - 200) ev -= ply; else if (ev < -(WIN - 200)) ev += ply;   // 詰みは局面基準で保存している
         if (e.f == 3) return ev;
         if (e.f == 1 && ev > alpha) alpha = ev;
         else if (e.f == 2 && ev < beta) beta = ev;
@@ -315,9 +329,13 @@ struct Engine {
         }
       }
     }
-    e.b0 = k0; e.b1 = k1; e.d = (signed char)depth;
-    e.f = best <= a0 ? 2 : (best >= beta ? 1 : 3);
-    e.v = (float)best; e.m = SY.fwd[sym][bestMove];
+    if (!optDeepTT || !e.f || e.gen != gen || depth >= e.d || (e.b0 == k0 && e.b1 == k1)) {
+      double sv = best;
+      if (sv > WIN - 200) sv += ply; else if (sv < -(WIN - 200)) sv -= ply;   // 詰みは「この局面から何手」で保存
+      e.b0 = k0; e.b1 = k1; e.d = (signed char)depth;
+      e.f = best <= a0 ? 2 : (best >= beta ? 1 : 3);
+      e.v = (float)sv; e.m = SY.fwd[sym][bestMove]; e.gen = gen;
+    }
     return best;
   }
 
@@ -329,7 +347,8 @@ struct Engine {
     if (!nl) return -1;
     u64 myT = threatCells(bb[side]) & ~occ, ground = groundOf(occ);
     if (myT & ground) { resMove = ctz(myT & ground) & 15; resDepth = 1; resScore = WIN - 1; return resMove; }
-    for (u32 i = 0, sz = 1u << ttBits; i < sz; i++) tt[i].f = 0;
+    if (optKeepTT) gen++;
+    else for (u32 i = 0, sz = 1u << ttBits; i < sz; i++) tt[i].f = 0;
     for (int i = 0; i < 32; i++) hist[i] = 0;
     for (int i = 0; i < 70; i++) killer[i][0] = killer[i][1] = -1;
     for (int i = 0; i < 16; i++) { rootDone[i] = false; rootScore[i] = -INF; }
@@ -352,7 +371,12 @@ struct Engine {
       for (int i = 0; i < nl; i++) {
         int p = order[i], c = cellOf(p);
         playCell(c);
-        double v = -search(d - 1, -INF, -(alpha - margin), 1);
+        double v;
+        if (i == 0 || margin > 0 || !optRootPVS) v = -search(d - 1, -INF, -(alpha - margin), 1);
+        else {
+          v = -search(d - 1, -alpha - 1, -alpha, 1);
+          if (v > alpha && !stop) v = -search(d - 1, -INF, -alpha, 1);
+        }
         undoCell(c);
         if (stop) break;
         scores[p] = v; completed++;

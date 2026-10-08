@@ -68,7 +68,9 @@ int main(int argc, char **argv) {
     A.setTT(new s4::TTE[1u << TT_BITS], TT_BITS);
     B.setTT(new s4::TTE[1u << TT_BITS], TT_BITS);
     auto conf = [](s4::Engine &e, const char *s) { e.optSym = std::strstr(s, "sym") != nullptr;
-      e.optKiller = std::strstr(s, "killer") != nullptr; e.optLMR = std::strstr(s, "lmr") != nullptr; };
+      e.optKiller = std::strstr(s, "killer") != nullptr; e.optLMR = std::strstr(s, "lmr") != nullptr;
+      e.optKeepTT = std::strstr(s, "keep") != nullptr; e.optRootPVS = std::strstr(s, "rpvs") != nullptr; e.optDeepTT = std::strstr(s, "deep") != nullptr;
+      const char *pk = std::strstr(s, "par"); e.parityK = pk ? std::atof(pk + 3) : 0; };
     conf(A, argv[5]); conf(B, argv[6]);
     verbose = false;
     int wB = 0, lB = 0, dr = 0;
@@ -105,6 +107,8 @@ int main(int argc, char **argv) {
     const char *o = argc >= 3 ? argv[2] : "sym";
     E.optSym = std::strstr(o, "sym") != nullptr;
     E.optKiller = std::strstr(o, "killer") != nullptr; E.optLMR = std::strstr(o, "lmr") != nullptr;
+    E.optKeepTT = std::strstr(o, "keep") != nullptr; E.optRootPVS = std::strstr(o, "rpvs") != nullptr; E.optDeepTT = std::strstr(o, "deep") != nullptr;
+    { const char *pk = std::strstr(o, "par"); E.parityK = pk ? std::atof(pk + 3) : 0; }
     verbose = false;
     char buf[1024];
     while (std::fgets(buf, sizeof buf, stdin)) {
