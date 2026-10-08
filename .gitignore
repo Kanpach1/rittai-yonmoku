@@ -1,1 +1,4 @@
 node_modules/
+third_party/
+Inbox/
+.DS_Store
