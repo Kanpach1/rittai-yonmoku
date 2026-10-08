@@ -9,6 +9,8 @@
 3. `docs/requirements.md`
 4. `docs/design.md`
 
+`docs/shared-memo.md`(ユーザー・ChatGPT・Claude Code の合意内容の共有メモ)は `docs/design.md` と同じ優先度で参照する。
+
 上位と下位が矛盾する場合は上位を優先する。
 ただし、実装指示書と `docs/requirements.md` が明確に矛盾している場合は、勝手に解釈して実装せず、その矛盾を報告して止まる。
 

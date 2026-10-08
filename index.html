@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1262,7 +1262,7 @@ if (typeof module !== "undefined") module.exports = Score4;
   }
   var blobs = [];
   if (has3D) {
-    isDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    isDark = true;   // 盤の世界は端末の設定に関係なく暗い世界に固定する(画面部品も data-theme="dark")
     scene = new THREE.Scene();
     scene.fog = new THREE.Fog(isDark ? 0x10151a : 0xc7cdd0, 12, 34);
     camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
@@ -1270,7 +1270,8 @@ if (typeof module !== "undefined") module.exports = Score4;
     scene.add(new THREE.HemisphereLight(0xfff2e2, 0x3a424a, 0.72));
     var lamp = new THREE.SpotLight(0xffe6c4, 1.25, 45, 0.6, 0.85, 1);
     lamp.position.set(2.2, 13, 4.2); lamp.target.position.set(0, 0, 0);
-    lamp.castShadow = true; lamp.shadow.mapSize.set(1024, 1024); lamp.shadow.bias = -0.0006;
+    // 盤を横切る長い影は落とさない。接地の影(棒の根元の陰り、1段目の玉の影)は盤のテクスチャと blobs で出す
+    lamp.castShadow = false; lamp.shadow.mapSize.set(1024, 1024); lamp.shadow.bias = -0.0006;
     lamp.shadow.camera.near = 5; lamp.shadow.camera.far = 30;
     scene.add(lamp); scene.add(lamp.target);
     var rim = new THREE.DirectionalLight(0x9fb7ff, 0.2); rim.position.set(-7, 5, -6); scene.add(rim);
