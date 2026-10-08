@@ -1384,6 +1384,8 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
   function pegZ(p){ return (Math.floor(p / 4) - 1.5) * S; }
   function ballY(z){ return R + 0.02 + z * DZ; }
 
+  // 振り返りのリング色は象牙の上でも見える明るい黄。ヒントの金（GOLD）とは区別する
+  var ringGeoPlay, ringGeoReview, RING_PLAY = 0xfff0d4, RING_REVIEW = 0xffe040;
   var pegMatRef = null, lightRefs = [], scene, camera, target, ghost, lastRing, colDisc, isDark = false, hitMeshes = [], ballGeo, tMarkers = [], hintRing, hintBall, winRod = null, winFx = null, winLight = null, raycaster, ndc;
   var DEF = { theta: Math.PI / 4, phi: 0.95 };
   var theta = DEF.theta, phi = DEF.phi, radius = 11, userZoomed = false, viewTween = null;
@@ -1469,7 +1471,10 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
     ghost.visible = false; scene.add(ghost);
     colDisc = new THREE.Mesh(new THREE.CircleGeometry(0.6, 48), new THREE.MeshBasicMaterial({ color: 0xfff1dc, transparent: true, opacity: 0.12, depthWrite: false }));
     colDisc.rotation.x = -Math.PI / 2; colDisc.position.y = 0.012; colDisc.visible = false; scene.add(colDisc);
-    lastRing = new THREE.Mesh(new THREE.TorusGeometry(R + 0.03, 0.011, 6, 64), new THREE.MeshBasicMaterial({ color: 0xfff0d4, transparent: true, opacity: 0, depthWrite: false }));
+    ringGeoPlay = new THREE.TorusGeometry(R + 0.03, 0.011, 6, 64);
+    // 振り返りでは球の輪郭の外に太く出して、象牙の球の上でも盤面を背に見えるようにする
+    ringGeoReview = new THREE.TorusGeometry(R + 0.11, 0.028, 8, 64);
+    lastRing = new THREE.Mesh(ringGeoPlay, new THREE.MeshBasicMaterial({ color: RING_PLAY, transparent: true, opacity: 0, depthWrite: false }));
     lastRing.rotation.x = Math.PI / 2; lastRing.visible = false; scene.add(lastRing);
     var tGeo = new THREE.SphereGeometry(0.15, 16, 12);
     for (var c = 0; c < 64; c++) {
@@ -1696,13 +1701,19 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
   /* ---------- game flow ---------- */
   var anims = [], lastBall = null;
   var lastRingT = 0, lastRingPeak = 0.8, lastGlow = null;
+  // 振り返りでは、表示中の局面の直前の一手を見失わないよう、リングと球のほのかな発光を消さずに残す
+  var REVIEW_RING = 0.7, REVIEW_GLOW = 0.1;
   function setLast(mesh, emphasize){
+    if (lastBall && lastBall !== mesh) lastBall.material.emissiveIntensity = lastBall.userData.e0 || 0;
     lastBall = mesh;
     if (!has3D) return;
     if (mesh) {
+      lastRing.geometry = review ? ringGeoReview : ringGeoPlay;
+      lastRing.material.color.setHex(review ? RING_REVIEW : RING_PLAY);
       lastRing.position.copy(mesh.position); lastRing.visible = true;
       lastRingT = performance.now(); lastRingPeak = emphasize ? 0.9 : 0.45;   // AIの手は少しだけ見やすく
-      lastGlow = emphasize ? mesh : null;
+      lastGlow = emphasize && !review ? mesh : null;
+      if (review) mesh.material.emissiveIntensity = (mesh.userData.e0 || 0) + REVIEW_GLOW;
     } else lastRing.visible = false;
   }
 
@@ -2043,7 +2054,7 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
         }
       });
     });
-    moves.forEach(function(m){ if (m.mesh && !rel[m.c]) m.mesh.material.opacity = 0.35; });
+    moves.forEach(function(m){ if (m.mesh && !rel[m.c] && m.mesh !== lastBall) m.mesh.material.opacity = 0.35; });
     if (has3D) info.cells.forEach(function(c){
       var mk = tMarkers[c]; mk.visible = true; mk.material.color.setHex(review.winner === 1 ? RED : IVORY); mk.material.opacity = 0.85;
     });
@@ -2104,7 +2115,8 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
     review = { rec: rec, winner: winner, loser: -winner, idx: rec.length, info: null, busy: true, gid: gameId, revealAt: -1 };
     $("bottom").hidden = true; $("review").hidden = false;
     moves.forEach(function(m){ if (m.mesh) { m.mesh.material.opacity = 1; m.mesh.material.emissiveIntensity = m.mesh.userData.e0 || 0; } });
-    winCells = null; if (has3D) lastRing.visible = false;
+    winCells = null;
+    setLast(moves.length && moves[moves.length - 1].mesh ? moves[moves.length - 1].mesh : null, false);
     setReviewText("", "流れを確かめています");
     updateReviewButtons(); refresh(); layoutView();
     var gid = gameId;
@@ -2145,9 +2157,11 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
     cancelThink();
     var rec = review.rec;
     clearReviewMarks(); clearHint();
+    if (lastBall) lastBall.material.emissiveIntensity = lastBall.userData.e0 || 0;
     $("review").hidden = true; $("bottom").hidden = false;
     if (restore) {
       rebuildTo(rec.length);
+      if (lastBall) lastBall.material.emissiveIntensity = lastBall.userData.e0 || 0;
       var last = moves[moves.length - 1], wl = winLineAt(last.c, last.player);
       review = null;
       if (wl >= 0) finish(wl, true);
@@ -2793,7 +2807,8 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
       for (var bq = 0; bq < 16; bq++) if (!(seen & (1 << bq))) blobs[bq].visible = false;
       if (lastRing.visible && !winCells) {
         var lr = Math.min(1, (t - lastRingT) / 600);
-        lastRing.material.opacity = 0.1 + (lastRingPeak - 0.1) * (1 - lr);   // 0.6秒で減衰し、かすかに残る
+        var rf = review ? REVIEW_RING : 0.1;
+        lastRing.material.opacity = rf + Math.max(0, lastRingPeak - rf) * (1 - lr);   // 0.6秒で減衰し、かすかに残る（振り返り中ははっきり残る）
         if (lastGlow) { lastGlow.material.emissiveIntensity = 0.1 * (1 - lr); if (lr >= 1) lastGlow = null; }
       }
       ritualFrame(t);
