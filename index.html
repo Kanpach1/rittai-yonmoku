@@ -70,7 +70,6 @@ canvas:active{ cursor:grabbing; }
 .pl .dot{ width:12px; height:12px; }
 .statusline{ text-align:center; font-size:12.5px; color:var(--ink2); min-height:1.5em; margin-top:4px; }
 .sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
-.thinkbar{ display:none; }
 @keyframes pulse{ 50%{ transform:scale(.7); opacity:.6; } }
 .info{ font-size:12px; color:var(--ink2); text-align:center; }
 .evalrow{ display:flex; align-items:center; gap:8px; margin-top:8px; font-size:12px; color:var(--ink2); }
@@ -217,6 +216,8 @@ canvas{ transition:opacity .9s ease; }
 .homestart{ display:block; width:100%; margin-top:16px; min-height:52px; font-size:16px; }
 .homeresume{ display:block; margin:6px auto 0; }
 .homeresume[hidden]{ display:none; }
+.homerecord{ margin:8px 0 0; font-variant-numeric:tabular-nums; }
+.homerecord:empty{ display:none; }
 
 /* sheet */
 .backdrop{ position:absolute; inset:0; z-index:5; background:rgba(0,0,0,.35); opacity:0; pointer-events:none; transition:opacity .2s; }
@@ -373,6 +374,7 @@ canvas{ transition:opacity .9s ease; }
         <button type="button" data-mode="hard">上級</button>
         <button type="button" data-mode="max" class="lvmax">最強</button>
       </div>
+      <p class="note homerecord" id="homeRecord"></p>
       <div id="homeSideWrap">
         <p class="subh">先手（朱）</p>
         <div class="seg" id="homeSide">
@@ -939,7 +941,36 @@ if (typeof module !== "undefined") module.exports = Score4;
   function aiName(m){ var l = LEVELS[m].label; return l + (/[A-Za-z]$/.test(l) ? " AI" : "AI"); }
   var HINT = { timeMs: 2000, maxDepth: 60, book: true };
 
-  var STORE_KEY = "rittai4.settings";
+  var STORE_KEY = "rittai4.settings", GAME_KEY = "rittai4.game", STATS_KEY = "rittai4.stats";
+  // 対局中の局面（リロードしても続きから指せる）と、相手ごとの戦績。どちらもこの端末のブラウザにだけ残る
+  var rated = false, savedGame = null;
+  function readJSON(k){ try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } }
+  function writeJSON(k, v){ try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  (function(){
+    var g = readJSON(GAME_KEY);
+    if (!g || !Array.isArray(g.moves) || !g.moves.length || !(g.mode === "pvp" || LEVELS[g.mode])) return;
+    var e = new Score4.Engine(), h = new Int8Array(16);
+    for (var i = 0; i < g.moves.length; i++) {
+      var p = g.moves[i];
+      if (!(p >= 0 && p <= 15) || h[p] >= 4) return;
+      if (e.isThreat(p + 16 * h[p], e.side === 1 ? 0 : 1)) return;   // 決着済みの棋譜は再開しない
+      e.play(p); h[p]++;
+    }
+    if (g.moves.length < 64) savedGame = { mode: g.mode, humanSide: g.humanSide === -1 ? -1 : 1, moves: g.moves.slice(), rated: !!g.rated };
+  })();
+  function persistGame(){
+    if (review || !moves.length) return;
+    if (over) { writeJSON(GAME_KEY, null); return; }
+    writeJSON(GAME_KEY, { mode: mode, humanSide: humanSide, moves: pegList(), rated: rated });
+  }
+  function dropSavedGame(){ savedGame = null; writeJSON(GAME_KEY, null); }
+  function statsFor(m){ var s = readJSON(STATS_KEY) || {}; var r = s[m] || {}; return { w: r.w || 0, l: r.l || 0, d: r.d || 0 }; }
+  function addResult(m, key){
+    var s = readJSON(STATS_KEY) || {}, r = statsFor(m);
+    r[key]++; s[m] = r; writeJSON(STATS_KEY, s);
+    return r;
+  }
+  function recordText(r){ return r.w + "勝 " + r.l + "敗" + (r.d ? " " + r.d + "分" : ""); }
   function saveSettings(){
     try { localStorage.setItem(STORE_KEY, JSON.stringify({ mode: mode, humanSide: humanSide, showThreats2: showThreats, showPlan2: showPlan, confirmTap: confirmTap, soundOn: soundOn, vibeOn: vibeOn, hintsOn: hintsOn })); } catch (e) {}
   }
@@ -995,7 +1026,45 @@ if (typeof module !== "undefined") module.exports = Score4;
     if (d.ready) { workerOK = true; refresh(); return; }
     if (!pending || d.id !== pending.id) return;
     if (d.progress) { pending.last = d.progress; if (pending.onProgress) pending.onProgress(d.progress); return; }
-    if (d.result) { var p = pending; pending = null; p.onDone(d.result); }
+    if (d.result) {
+      var p = pending;
+      if (p.expect) { p.parts.push(d.result); mergeParts(p); return; }
+      pending = null; p.onDone(d.result);
+    }
+  }
+  // MCTSのルート並列（C++版と同じ考え方）: 同じ局面を複数のWorkerで独立に探索し、各手の訪問回数を合算する
+  var pool = [];
+  function poolSize(){ var n = (navigator.hardwareConcurrency || 2) - 1; return Math.max(1, Math.min(6, n)); }
+  function killPool(){ pool.forEach(function(w){ try { w.terminate(); } catch (e) {} }); pool = []; }
+  function startHelpers(req, n){
+    for (var i = 0; i < n; i++) {
+      var w = null;
+      try { w = new Worker(URL.createObjectURL(new Blob([engSrc + WORKER_TAIL], { type: "text/javascript" }))); } catch (e) {}
+      if (!w) { req.expect--; continue; }
+      w.onmessage = function(e){ if (pending === req && e.data.result) { req.parts.push(e.data.result); mergeParts(req); } };
+      w.onerror = function(){ if (pending === req) { req.expect--; mergeParts(req); } };
+      w.postMessage({ id: req.id, moves: req.moves, opts: { timeMs: req.opts.timeMs, algo: "mcts" } });
+      pool.push(w);
+    }
+  }
+  function mergeParts(req){
+    if (req.parts.length < req.expect) return;
+    pending = null; killPool();
+    var parts = req.parts, main = parts[0], tot = {}, i;
+    // 決勝点での即決など、探索しなかった結果があればそれを使う
+    for (i = 0; i < parts.length; i++) if (!parts[i].visits) { req.onDone(parts[i]); return; }
+    var nodes = 0;
+    parts.forEach(function(r){
+      nodes += r.nodes;
+      r.visits.forEach(function(v){
+        var t2 = tot[v.move] || (tot[v.move] = { n: 0, wins: 0 });
+        t2.n += v.n; t2.wins += v.rate * v.n;
+      });
+    });
+    var best = -1, bn = -1;
+    for (var mv in tot) if (tot[mv].n > bn) { bn = tot[mv].n; best = +mv; }
+    var rate = bn > 0 ? tot[best].wins / bn : 0.5;
+    req.onDone({ move: best, depth: 0, score: Math.round((rate - 0.5) * 1000), kind: "mcts", nodes: nodes, rate: rate, threads: parts.length, ms: main.ms });
   }
   function initWorker(){
     worker = makeWorker();
@@ -1024,7 +1093,9 @@ if (typeof module !== "undefined") module.exports = Score4;
     var req = { id: ++reqId, moves: pegList(), opts: opts, onProgress: onProgress, onDone: onDone, last: null, start: performance.now() };
     if (worker && workerOK) {
       req.viaWorker = true; pending = req;
+      if (opts.algo === "mcts") { req.parts = []; req.expect = poolSize(); }
       worker.postMessage({ id: req.id, moves: req.moves, opts: { timeMs: opts.timeMs, maxDepth: opts.maxDepth, book: !!opts.book, random: opts.random || 0, margin: opts.margin || 0, algo: opts.algo } });
+      if (req.expect > 1) startHelpers(req, req.expect - 1);
     } else runSync(req);
     return req;
   }
@@ -1045,6 +1116,7 @@ if (typeof module !== "undefined") module.exports = Score4;
     }
   }
   function cancelThink(){
+    killPool();
     if (!pending) return;
     var p = pending; pending = null;
     if (p.viaWorker) resetWorker();
@@ -1052,7 +1124,7 @@ if (typeof module !== "undefined") module.exports = Score4;
   function hurry(){
     if (!pending || !pending.viaWorker) return;
     var p = pending; pending = null;
-    resetWorker();
+    resetWorker(); killPool();
     if (p.last) p.onDone({ move: p.last.move, depth: p.last.depth, score: p.last.score, kind: "search" });
     else { syncEngine.load(p.moves); p.onDone(syncEngine.think({ timeMs: 150, maxDepth: 60, book: !!p.opts.book })); }
   }
@@ -1436,6 +1508,7 @@ if (typeof module !== "undefined") module.exports = Score4;
     $("levelNote").textContent = (mode === "hard" || mode === "max" || mode === "mcts") && !workerOK ? "この環境では、相手が考えている間は画面の動きが止まります。" : "";
     $("kifuText").textContent = moves.length ? pegList().join(",") : "（まだ一手も打たれていません）";
     updateThreatsAndPlan();
+    persistGame();
   }
 
   function updateThreatsAndPlan(){
@@ -1639,7 +1712,22 @@ if (typeof module !== "undefined") module.exports = Score4;
   function newGame(){
     tryStrong = false;
     if (deco.length) { deco.forEach(function(m){ scene.remove(m); m.material.dispose(); }); deco = []; }
-    clearBoard(); refresh(); maybeCpu();
+    clearBoard(); dropSavedGame(); rated = true; refresh(); maybeCpu();
+  }
+  // 前回の対局を続きから
+  function resumeSaved(){
+    var g = savedGame;
+    if (!g) return;
+    savedGame = null;
+    tryStrong = false;
+    if (deco.length) { deco.forEach(function(m){ scene.remove(m); m.material.dispose(); }); deco = []; }
+    mode = g.mode; humanSide = g.humanSide; saveSettings();
+    clearBoard();
+    g.moves.forEach(function(p){ placeInstant(p); });
+    rated = g.rated;
+    if (moves.length && moves[moves.length - 1].mesh) setLast(moves[moves.length - 1].mesh, false);
+    showHome(false);
+    refresh(); maybeCpu();
   }
 
   /* ---------- ホーム ---------- */
@@ -1649,7 +1737,17 @@ if (typeof module !== "undefined") module.exports = Score4;
     Array.prototype.forEach.call(homeEl.querySelectorAll("[data-mode]"), function(b){ b.setAttribute("aria-pressed", String(b.dataset.mode === homeMode)); });
     Array.prototype.forEach.call(homeEl.querySelectorAll("[data-side]"), function(b){ b.setAttribute("aria-pressed", String(+b.dataset.side === homeSide)); });
     $("homeSideWrap").hidden = homeMode === "pvp";
-    $("homeResume").hidden = !(moves.length > 0 && !over);
+    var live = moves.length > 0 && !over, rs = $("homeResume");
+    rs.hidden = !(live || savedGame);
+    if (live) rs.textContent = "対局に戻る";
+    else if (savedGame) rs.textContent = "前回の続きから（" + savedGame.moves.length + "手目まで・" +
+      (savedGame.mode === "pvp" ? "二人で対局" : aiName(savedGame.mode)) + "）";
+    var rec = $("homeRecord");
+    if (homeMode === "pvp") rec.textContent = "";
+    else {
+      var r = statsFor(homeMode);
+      rec.textContent = aiName(homeMode) + "との戦績　" + (r.w + r.l + r.d ? recordText(r) : "まだ対局していません");
+    }
   }
   function showHome(v){
     homeOpen = v;
@@ -1754,7 +1852,10 @@ if (typeof module !== "undefined") module.exports = Score4;
     setTimeout(function(){ if (gameId !== tok) return; starting = false; newGame(); }, 1350);
   });
   var liftDeco = null, starting = false;
-  $("homeResume").addEventListener("click", function(){ feel.select(); showHome(false); });
+  $("homeResume").addEventListener("click", function(){
+    feel.select(); finishRitual();
+    if (moves.length > 0 && !over) showHome(false); else resumeSaved();
+  });
   $("toHome").addEventListener("click", function(){
     closeSheet(); showResult(false); showHome(true);
     if (has3D && !moves.length && !deco.length) { placeDeco(0, false); placeDeco(1, false); }
@@ -1926,7 +2027,7 @@ if (typeof module !== "undefined") module.exports = Score4;
     if (ri >= review.rec.length) return;
     var pre = review.rec.slice(0, ri);
     exitReview(false);
-    clearBoard();
+    clearBoard(); rated = false;
     pre.forEach(function(p){ placeInstant(p); });
     if (moves.length && moves[moves.length - 1].mesh) setLast(moves[moves.length - 1].mesh, false);
     refresh();
@@ -1974,6 +2075,11 @@ if (typeof module !== "undefined") module.exports = Score4;
     $("resultMsg").textContent = msg;
     var meta = moves.length + "手";
     if (winCells) meta += "・" + lineKind(li);
+    if (!quiet && rated && mode !== "pvp") {
+      var res = li < 0 ? "d" : (board[winCells[0]] === humanSide ? "w" : "l");
+      meta += "・通算 " + recordText(addResult(mode, res));
+      rated = false;
+    }
     $("resultMeta").textContent = meta;
     var humanWon = winCells && (mode === "pvp" || board[winCells[0]] === humanSide);
     $("resultLine").textContent = ""; $("resultLine").classList.remove("on");
@@ -2106,7 +2212,7 @@ if (typeof module !== "undefined") module.exports = Score4;
       if (h[p] >= 4) { toast((i + 1) + "手目の " + p + " 番はもう埋まっています"); return false; }
       h[p]++;
     }
-    clearBoard();
+    clearBoard(); rated = false;
     for (var j = 0; j < parts.length; j++) {
       var wl = placeInstant(parts[j]);
       if (wl >= 0) {
