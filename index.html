@@ -4,10 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>立体四目</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap" rel="stylesheet">
 <style>
+/* 書体は fonts/ に同梱(index.html で使う文字だけを切り出したもの。tools/subset_fonts.py で作り直す)。オフラインでも表示される */
+@font-face{ font-family:"Shippori Mincho B1"; font-weight:400; font-display:swap; src:url("fonts/ShipporiMinchoB1-400.woff2") format("woff2"); }
+@font-face{ font-family:"Shippori Mincho B1"; font-weight:600; font-display:swap; src:url("fonts/ShipporiMinchoB1-600.woff2") format("woff2"); }
+@font-face{ font-family:"Shippori Mincho B1"; font-weight:800; font-display:swap; src:url("fonts/ShipporiMinchoB1-800.woff2") format("woff2"); }
+@font-face{ font-family:"Zen Kaku Gothic New"; font-weight:400; font-display:swap; src:url("fonts/ZenKakuGothicNew-400.woff2") format("woff2"); }
+@font-face{ font-family:"Zen Kaku Gothic New"; font-weight:700; font-display:swap; src:url("fonts/ZenKakuGothicNew-700.woff2") format("woff2"); }
+@font-face{ font-family:"IBM Plex Mono"; font-weight:400; font-display:swap; src:url("fonts/IBMPlexMono-400-digits.woff2") format("woff2"); unicode-range:U+30-39; }
 :root{
   --bg1:#eef0ef; --bg2:#bfc6c9;
   --ink:#1d2327; --ink2:#5a656b; --ink3:#8c979c;
@@ -50,7 +54,7 @@ canvas:active{ cursor:grabbing; }
 /* top */
 .top{ position:absolute; left:0; right:0; top:0; z-index:2; padding:12px 14px 0; pointer-events:none; }
 .toprow{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
-.title{ transition:opacity .5s ease, max-height .5s ease; max-height:40px; overflow:hidden; font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:600; font-size:24px; letter-spacing:.08em; line-height:1.2; }
+.title{ transition:opacity .5s ease, max-height .5s ease; max-height:40px; overflow:hidden; font-family:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:800; font-size:24px; letter-spacing:.08em; line-height:1.2; }
 .sub{ font-size:12px; color:var(--ink2); margin-top:2px; }
 .top.playing .title{ opacity:0; max-height:0; }
 
@@ -147,7 +151,7 @@ canvas:active{ cursor:grabbing; }
 }
 .result.show{ opacity:1; transform:translate(-50%, 0); pointer-events:auto; visibility:visible; transition:opacity .35s ease, transform .35s ease; }
 .result .close{ position:absolute; top:4px; right:4px; width:44px; height:44px; border:0; background:none; font-size:20px; color:var(--ink2); cursor:pointer; }
-.result .msg{ font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:600; font-size:24px; letter-spacing:.06em; text-align:center; }
+.result .msg{ font-family:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:600; font-size:24px; letter-spacing:.06em; text-align:center; }
 .rline{ margin:-4px 0 10px; font-size:13.5px; color:var(--ink); text-align:center; min-height:0; opacity:0; transition:opacity .5s ease; }
 .rline.on{ opacity:1; }
 .result .meta{ font-size:13px; color:var(--ink2); margin-bottom:10px; text-align:center; }
@@ -163,7 +167,7 @@ canvas:active{ cursor:grabbing; }
 }
 .review[hidden]{ display:none; }
 .rvhead{ display:flex; align-items:baseline; gap:10px; }
-.rvtitle{ font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:600; font-size:20px; letter-spacing:.04em; }
+.rvtitle{ font-family:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:600; font-size:20px; letter-spacing:.04em; }
 .rvtag{ font-size:12px; color:var(--red); font-weight:700; }
 .rvclose{ margin-left:auto; min-height:36px; }
 .rvmsg{ margin:0; font-size:14.5px; line-height:1.7; min-height:1.7em; white-space:pre-line; color:var(--ink2); }
@@ -192,24 +196,24 @@ canvas.r-dark{ opacity:0; }
 canvas{ transition:opacity .9s ease; }
 .gate{ position:absolute; inset:0; z-index:5; border:0; background:transparent; color:var(--ink2); cursor:pointer;
   display:flex; align-items:flex-end; justify-content:center; padding:0 16px calc(env(safe-area-inset-bottom,0px) + 14vh);
-  font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-size:15px; letter-spacing:.24em;
+  font-family:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif; font-size:15px; letter-spacing:.24em;
   transition:opacity .5s ease; }
 .gate.off{ opacity:0; pointer-events:none; }
 .gate[hidden]{ display:none; }
 .startcue{ position:absolute; z-index:4; left:0; right:0; top:42%; text-align:center; pointer-events:none;
-  font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:600; font-size:22px; letter-spacing:.12em;
+  font-family:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:600; font-size:22px; letter-spacing:.12em;
   opacity:0; transition:opacity .35s ease; }
 .startcue.on{ opacity:1; }
 .home[hidden]{ display:none; }
 .hometop{ padding:28px 20px 0; text-align:center; }
-.hometitle{ margin:0; font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:600; font-size:40px; letter-spacing:.14em; }
+.hometitle{ margin:0; font-family:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:800; font-size:40px; letter-spacing:.14em; }
 .homesub{ margin:10px auto 0; max-width:22em; font-size:13px; line-height:1.7; color:var(--ink2); }
 .homepanel{ pointer-events:auto; background:var(--panel-solid); border-top:1px solid var(--line); border-radius:20px 20px 0 0;
   padding:16px 18px 18px; box-shadow:0 -8px 28px rgba(0,0,0,.18); width:100%; max-width:560px; margin:0 auto; }
 .levels{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
 .levels.one{ grid-template-columns:1fr; }
 .levels button{ min-height:48px; border-radius:12px; border:1px solid var(--line); background:transparent; color:var(--ink2);
-  font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:600; font-size:17px; letter-spacing:.06em; cursor:pointer; }
+  font-family:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:600; font-size:17px; letter-spacing:.06em; cursor:pointer; }
 .levels button[aria-pressed="true"]{ background:var(--ink); color:var(--bg1); border-color:transparent; }
 .levels button.lvmax[aria-pressed="true"]{ box-shadow:0 0 0 2px var(--gold) inset; }
 #homeSideWrap{ margin-top:14px; }
@@ -218,6 +222,9 @@ canvas{ transition:opacity .9s ease; }
 .homeresume{ display:block; margin:6px auto 0; }
 .homeresume[hidden]{ display:none; }
 .homerecord{ margin:8px 0 0; font-variant-numeric:tabular-nums; }
+/* 数字は意味の表示(冷たい側): 等幅の欧文数字。数字以外の字はゴシックに落ちる */
+.info, .result .meta, .homerecord, .homeresume, .rvnav span, .kifu{
+  font-family:"IBM Plex Mono","Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif; }
 .homerecord:empty{ display:none; }
 
 /* sheet */
@@ -244,7 +251,7 @@ canvas{ transition:opacity .9s ease; }
   text-align:left; padding:10px 12px 11px; border-radius:12px; border:1px solid var(--line);
   background:transparent; cursor:pointer; display:flex; flex-direction:column; gap:3px; min-height:44px;
 }
-.opp .nm{ font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:600; font-size:19px; letter-spacing:.08em; }
+.opp .nm{ font-family:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif; font-weight:600; font-size:19px; letter-spacing:.08em; }
 .opp .tg{ font-size:12px; color:var(--ink2); }
 .opp .sp{ font-size:11.5px; color:var(--ink3); margin-top:2px; }
 .opp .sp i{ font-style:normal; white-space:nowrap; margin-right:1em; }
@@ -1199,13 +1206,14 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
     } catch (e) { ac = null; }
   }
   // 着地音の素材(段ごとに4変奏)を一度だけ読み込む。AudioBuffer は作り直した AudioContext でも使える。
-  // 標準は埋め込みの v2 C。比較用に ?sound=A / B(v2、Inbox/ から読む)、?sound=B1(前の試作)、?sound=legacy(従来の合成音)
+  // 標準は合成の scale(接触=盤か玉か、余韻=段ごとに五音音階)。素材は読み込まない。
+  // 比較用に ?sound=C(v2 C、埋め込み)/ A / B(v2、Inbox/ から読む)、?sound=B1(前の試作)、?sound=legacy(従来の合成音)
   var KOTO_DIR = "Inbox/rittai4_koto_v2/";
   var KOTO_GAIN = { A: 2.55, B: 2.69, C: 2.69, B1: 1.235 };   // 1段目の最初の180msの音量を、従来の着地音に揃える係数
-  var soundSel = (location.search.match(/[?&]sound=(A|B|C|B1|legacy)\b/) || [])[1] || "C";
+  var soundSel = (location.search.match(/[?&]sound=(A|B|C|B1|legacy|scale)\b/) || [])[1] || "scale";
   var kotoBufs = null, kotoLoading = false, kotoLast = [-1, -1, -1, -1];
   function loadKoto(){
-    if (kotoBufs || kotoLoading || soundSel === "legacy") return;
+    if (kotoBufs || kotoLoading || soundSel === "legacy" || soundSel === "scale") return;
     kotoLoading = true;
     try {
       // 最初のタップより前に読み込めるよう、音を鳴らさない OfflineAudioContext でデコードする
@@ -1250,6 +1258,15 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
     env(ng, t, Math.max(0.0002, vol * noiseAmt), 0.03);
     n.connect(f); f.connect(ng); ng.connect(master); n.start(t); n.stop(t + 0.06);
   }
+  // 樹脂どうしが当たる短く高い「チッ」: 帯域を絞ったノイズだけ
+  function click(vol, freq){
+    if (!soundOn || !ac || ac.state !== "running") return;
+    var t = ac.currentTime;
+    var n = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    n.buffer = noiseBuf; f.type = "bandpass"; f.frequency.value = freq; f.Q.value = 2.2;
+    env(g, t, Math.max(0.0002, vol), 0.014);
+    n.connect(f); f.connect(g); g.connect(master); n.start(t); n.stop(t + 0.04);
+  }
   // 着地音の素材を鳴らす。z は段(0〜3)、vol は knock() と同じ尺度。
   // 段ごとの強弱は素材に入っているので、案ごとに共通の係数だけを掛ける。変奏は直前と同じものを避けて選ぶ
   function koto(vol, z){
@@ -1288,8 +1305,10 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
       o.connect(g); g.connect(out); o.start(t); o.stop(t + a + decay + 0.1);
     });
   }
-  // 余韻の音程は固定（色で音程は変えない）。決着で初めて、4玉の響きが和音に収束する
+  // 余韻の音程は色で変えない。legacy と素材では固定、scale では段で五音音階を上がる。決着で4玉の響きが和音に収束する
   var ROOT = 392.0, FIFTH = 588.0;
+  // scale の余韻: 段ごとに G の五音音階(ソ・ラ・シ・レ)
+  var SCALE = [ROOT, 440.0, 493.88, 587.33];
   function jit(r){ return 1 + (Math.random() * 2 - 1) * r; }
   function fadeMusic(){
     if (!ac || !musicGain) return;
@@ -1330,14 +1349,32 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
                 { f: 1.06, d: 0.100, n: 0.48, v: 0.94 },
                 { f: 1.11, d: 0.075, n: 0.60, v: 0.86 } ][z];
       var base = pl === 1 ? 310 : 345;
-      // 接触(コッ)は毎回わずかに揺らす: 音程±1.5% / 音量±10%
-      if (kotoBufs) koto(0.2 + 0.48 * strength, z);
-      else knock((0.2 + 0.48 * strength) * T.v * jit(0.1), base * T.f * jit(0.015), T.d + 0.03 * strength, 0, T.n);
-      // 余韻は停止(ヒットストップ)が終わってから開く。対局中は短く薄く、決勝手と起動では長く。
-      // v2 の素材を使うときは、通常着手の短い余韻は素材側(C の尾部)に任せ、ここでは足さない
       var tb = pl === 1 ? "warm" : "bright", dl = (o.stop || 0) / 1000;
-      if (o.tail === "long") tone(ROOT, 0.055 * jit(0.05), 1.5, dl, 0.015, musicGain, tb);
-      else if (o.tail !== "none" && !(kotoBufs && soundSel !== "B1")) tone(ROOT, 0.018 * jit(0.05), 0.32, dl, 0.012, null, tb);
+      if (soundSel === "scale") {
+        // 接触は物理: 盤(1段目)=木の低めで丸い「コトッ」、玉の上(2段目以上)=樹脂どうしの高めで硬い「カチッ」。
+        // 毎回わずかに揺らす: 音程±1.5% / 音量±10%
+        var v0 = (0.2 + 0.48 * strength) * jit(0.1);
+        if (z === 0) knock(v0, base * 0.92 * jit(0.015), 0.085 + 0.03 * strength, 0, 0.8);
+        else {
+          knock(v0 * (0.92 - 0.04 * z), base * (1.32 + 0.05 * z) * jit(0.015), 0.05 + 0.015 * strength, 0, 1.1);
+          click(v0 * 0.35, 3400 * jit(0.03));
+        }
+        // 余韻はデジタル: 段ごとに G の五音音階を上がる(ソ・ラ・シ・レ)。どの順に鳴っても濁らず、決着の和音(ソ・レ)に収まる。
+        // 高い音ほど大きく聞こえるので、音程に応じて少し下げる
+        var f = SCALE[z], fv = Math.sqrt(ROOT / f);
+        if (o.tail === "long") tone(f, 0.055 * fv * jit(0.05), 1.5, dl, 0.015, musicGain, tb);
+        else if (o.tail !== "none") tone(f, 0.018 * fv * jit(0.05), 0.32, dl, 0.012, null, tb);
+        // 最強AIが勝ちを読み切った手: 同じ音にわずかにずれた音を重ね、余韻がゆっくり揺れる。気づく人だけ気づく程度
+        if (o.sealed) tone(f * 1.006, 0.016 * fv, 0.9, dl + 0.02, 0.06, null, "pure");
+      } else {
+        // 接触(コッ)は毎回わずかに揺らす: 音程±1.5% / 音量±10%
+        if (kotoBufs) koto(0.2 + 0.48 * strength, z);
+        else knock((0.2 + 0.48 * strength) * T.v * jit(0.1), base * T.f * jit(0.015), T.d + 0.03 * strength, 0, T.n);
+        // 余韻は停止(ヒットストップ)が終わってから開く。対局中は短く薄く、決勝手と起動では長く。
+        // v2 の素材を使うときは、通常着手の短い余韻は素材側(C の尾部)に任せ、ここでは足さない
+        if (o.tail === "long") tone(ROOT, 0.055 * jit(0.05), 1.5, dl, 0.015, musicGain, tb);
+        else if (o.tail !== "none" && !(kotoBufs && soundSel !== "B1")) tone(ROOT, 0.018 * jit(0.05), 0.32, dl, 0.012, null, tb);
+      }
       if (own && strength > 0.6) haptic(o.final ? "deep" : "land");   // 決勝手の着地は通常より深い一発
     },
     // 決着: それまで単独で鳴っていた二つの響きが、初めて和音として解決する（約1秒の「成立」）
@@ -1726,7 +1763,8 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
     return winLineAt(c, pl);
   }
 
-  function play(p){
+  // sealed: 最強AIがこの手で初めて勝ちを読み切った(着地の余韻にだけ出す)
+  function play(p, sealed){
     if (over || animating) return false;
     if (heights[p] >= 4) { flash("その棒はいっぱいです"); return false; }
     clearHint();
@@ -1748,8 +1786,8 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
       maybeCpu();
     }
     var stopMs = wl >= 0 ? 115 : 35, tail = wl >= 0 ? "long" : "short";
-    if (has3D && !reduceMotion) anims.push({ mesh: mesh, y0: mesh.position.y, ty: ballY(z), t0: performance.now(), dur: own ? 210 : 260, done: done, pl: pl, own: own, z: z, landed: false, stop: stopMs, tail: tail, final: wl >= 0 });
-    else { if (mesh) mesh.position.y = ballY(z); feel.land(pl, 1, own, z, { stop: 0, tail: tail, final: wl >= 0 }); setTimeout(done, 0); }
+    if (has3D && !reduceMotion) anims.push({ mesh: mesh, y0: mesh.position.y, ty: ballY(z), t0: performance.now(), dur: own ? 210 : 260, done: done, pl: pl, own: own, z: z, landed: false, stop: stopMs, tail: tail, final: wl >= 0, sealed: sealed && wl < 0 });
+    else { if (mesh) mesh.position.y = ballY(z); feel.land(pl, 1, own, z, { stop: 0, tail: tail, final: wl >= 0, sealed: sealed && wl < 0 }); setTimeout(done, 0); }
     return true;
   }
 
@@ -1792,12 +1830,15 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
       setTimeout(function(){
         if (my !== gameId) return;
         thinking = false; thinkInfo = null;
-        play(r.move);
+        // 最強AIが勝ちを読み切った最初の手だけ、余韻をわずかに揺らす(1局に1回)
+        var sealed = lv === LEVELS.max && r.kind === "search" && r.score > WIN - 200 && sealedGame !== gameId;
+        if (sealed) sealedGame = gameId;
+        play(r.move, sealed);
       }, wait);
     });
     thinkBudget = { start: t0, ms: lv.timeMs, req: req };
   }
-  var thinkBudget = null;
+  var thinkBudget = null, sealedGame = -1;
 
   function clearBoard(){
     cancelThink();
@@ -2228,13 +2269,22 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
     winFx = { S: S, E: E, mid: a.clone().add(b).multiplyScalar(0.5), at: at, bead: bead, ripples: ripples, hit: [-1, -1, -1, -1], objs: objs,
               swelled: false, strong: false, pans: [0, 0, 0, 0] };
   }
+  // 勝利線の4玉を、光が通る順に並べる。
+  // 段をまたぐ線(縦・斜め)は必ず下の段の玉から貫く。同じ段の線は、最後に置いた玉から遠い方の端から(最後の玉が真ん中でも遠い方の端から)
+  function orderWinCells(cells, lastC){
+    if ((cells[0] >> 4) > (cells[3] >> 4)) cells.reverse();
+    else if ((cells[0] >> 4) === (cells[3] >> 4)) {
+      var k = cells.indexOf(lastC);
+      if (k >= 0 && k <= 1) cells.reverse();
+    }
+    return cells;
+  }
   function finish(li, quiet){
     over = true;
     var msg;
     if (li < 0) { msg = "引き分け"; winCells = null; }
     else {
-      winCells = [LN[li*4], LN[li*4+1], LN[li*4+2], LN[li*4+3]];
-      if ((winCells[0] >> 4) > (winCells[3] >> 4)) winCells.reverse();   // 線は必ず下の段の玉から貫く(縦・段をまたぐ斜め)
+      winCells = orderWinCells([LN[li*4], LN[li*4+1], LN[li*4+2], LN[li*4+3]], moves.length ? moves[moves.length - 1].c : -1);
       var wpl = board[winCells[0]];
       msg = mode === "pvp" ? who(wpl) + "の勝ち" :
         (wpl === humanSide ? (mode === "max" ? "最強AIに勝ちました" : "あなたの勝ち") : aiName(mode) + "の勝ち");
@@ -2775,7 +2825,7 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
             // Impact: 停止・コッ・振動・接地影の締まりを同じ一点に集める
             a.landed = true; a.tl = t; a.mesh.position.y = a.ty;
             a.mesh.userData.sq = { t0: t, stop: a.stop || 35 };
-            feel.land(a.pl, 0.85, a.own, a.z, { stop: a.stop || 35, tail: a.tail || "short", final: a.final });
+            feel.land(a.pl, 0.85, a.own, a.z, { stop: a.stop || 35, tail: a.tail || "short", final: a.final, sealed: a.sealed });
           }
         } else {
           var since = t - a.tl, st = a.stop || 35;
