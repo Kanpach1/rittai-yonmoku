@@ -46,4 +46,15 @@ const before = e.bookKey(), h1 = e.h1;
 e.play(10); e.undo(10);
 assert.strictEqual(e.bookKey(), before); assert.strictEqual(e.h1, h1);
 
+// MCTS: 即勝ち・防御、探索後に盤面が元に戻る
+e.load([0, 4, 1, 5, 2, 6]);
+assert.strictEqual(e.think({ algo: 'mcts', timeMs: 200 }).move, 3);
+e.load([0, 4, 1, 5, 2]);
+assert.strictEqual(e.think({ algo: 'mcts', timeMs: 200 }).move, 3);
+e.load([5, 6, 9]);
+const key = e.bookKey();
+r = e.think({ algo: 'mcts', timeMs: 300 });
+assert(r.nodes > 100 && r.move >= 0 && r.move < 16);
+assert.strictEqual(e.bookKey(), key); assert.strictEqual(e.stack.length, 3);
+
 console.log(`all tests passed (定石 ${n} 局面)`);

@@ -380,6 +380,8 @@ canvas{ transition:opacity .9s ease; }
           <button type="button" data-side="-1">AI</button>
         </div>
       </div>
+      <p class="subh gap">試験中のAI</p>
+      <div class="levels one"><button type="button" data-mode="mcts">MCTS</button></div>
       <p class="subh gap">友達と対局</p>
       <div class="levels one"><button type="button" data-mode="pvp">二人で対局</button></div>
       <button class="btn primary wide homestart" id="homeStart" type="button">対局を始める</button>
@@ -405,6 +407,8 @@ canvas{ transition:opacity .9s ease; }
         <button type="button" class="opp" data-mode="normal"><span class="nm">中級</span><span class="sp"><i>4手先まで読む</i></span></button>
         <button type="button" class="opp" data-mode="hard" style="grid-column:1 / -1"><span class="nm">上級</span><span class="sp"><i>定石を使い、1手に約3秒読む</i></span></button>
         <button type="button" class="opp sei" data-mode="max"><span class="nm">最強</span><span class="sp"><i>定石を使い、1手に約8秒読む</i><i>現在の最高棋力</i></span></button>
+        <p class="subh gap" style="grid-column:1 / -1">試験中のAI</p>
+        <button type="button" class="opp" data-mode="mcts" style="grid-column:1 / -1"><span class="nm">MCTS</span><span class="sp"><i>モンテカルロ木探索、1手に約8秒</i><i>score4_mcts（C++版）の移植</i></span></button>
         <p class="subh gap" style="grid-column:1 / -1">友達と対局</p>
         <button type="button" class="opp pvp" data-mode="pvp"><span class="nm">二人で対局</span><span class="sp"><i>1台の端末で交互に打つ</i></span></button>
       </div>
@@ -739,6 +743,107 @@ var Score4 = (function(){
              plies: WIN - lostR.score };
   };
 
+  // ---- MCTS（mikanakim/score4_mcts の mcts2.cpp を移植） ----
+  // UCB1(C=0.2)で子を選び、訪問10回で展開。プレイアウトは「自分の決勝点→打つ、相手の決勝点→止める、それ以外はランダム」。
+  // 最終的に訪問回数が最も多い手を選ぶ。value は常に「そのノードで手番の側」から見た勝率（勝ち1・引き分け0.5・負け0）。
+  var MCTS_C = 0.2, MCTS_EXPAND = 10;
+  // 地面（今すぐ置けるマス）にある k 側の決勝点の棒。なければ -1
+  E.groundThreat = function(k){
+    var h = this.h;
+    for (var p = 0; p < 16; p++) if (h[p] < 4 && this.isThreat(p + 16 * h[p], k)) return p;
+    return -1;
+  };
+  E.playout = function(){
+    var me = this.side, start = this.stack.length, v = 0.5, legal = this.mvBuf, h = this.h;
+    while (this.n < 64) {
+      var k = this.side === 1 ? 0 : 1, p = this.groundThreat(k);
+      if (p >= 0) { v = this.side === me ? 1 : 0; break; }   // 手番側が次の手で勝つ
+      p = this.groundThreat(1 - k);
+      if (p < 0) {
+        var m = 0;
+        for (var q = 0; q < 16; q++) if (h[q] < 4) legal[m++] = q;
+        p = legal[Math.floor(Math.random() * m)];
+      }
+      this.play(p);
+    }
+    while (this.stack.length > start) this.undo(this.stack[this.stack.length - 1]);
+    return v;
+  };
+  function MNode(move, term){ this.move = move; this.term = term; this.n = 0; this.w = 0; this.ch = null; }
+  E.mctsExpand = function(node){
+    node.ch = [];
+    var k = this.side === 1 ? 0 : 1, h = this.h;
+    for (var p = 0; p < 16; p++) {
+      if (h[p] >= 4) continue;
+      // term: 1 = この手で勝ち（子ノードの手番側は負け）、2 = 盤が埋まって引き分け
+      var term = this.isThreat(p + 16 * h[p], k) ? 1 : (this.n + 1 === 64 ? 2 : 0);
+      node.ch.push(new MNode(p, term));
+    }
+  };
+  E.mctsSelect = function(node){
+    var ch = node.ch, i, t = 0, best = null, bv = -INF;
+    for (i = 0; i < ch.length; i++) { if (ch[i].n === 0) return ch[i]; t += ch[i].n; }
+    var lt = 2 * Math.log(t);
+    for (i = 0; i < ch.length; i++) {
+      var c = ch[i], u = 1 - c.w / c.n + MCTS_C * Math.sqrt(lt / c.n);
+      if (u > bv) { bv = u; best = c; }
+    }
+    return best;
+  };
+  E.mctsEval = function(node){
+    var v;
+    if (node.term) v = node.term === 1 ? 0 : 0.5;
+    else if (!node.ch) {
+      v = this.playout();
+      if (node.n + 1 === MCTS_EXPAND) this.mctsExpand(node);
+    } else {
+      var c = this.mctsSelect(node);
+      this.play(c.move);
+      v = 1 - this.mctsEval(c);
+      this.undo(c.move);
+    }
+    node.w += v; node.n++;
+    return v;
+  };
+  // opts: {timeMs, onProgress}
+  E.mcts = function(opts){
+    var h = this.h, legal = [], p;
+    for (p = 0; p < 16; p++) if (h[p] < 4) legal.push(p);
+    if (!legal.length) return null;
+    var start = now(), k = this.side === 1 ? 0 : 1;
+    // 決勝点があれば探索しない（C++版の get_AI_action と同じ）
+    p = this.groundThreat(k);
+    if (p >= 0) return { move: p, depth: 1, score: WIN - 1, kind: "mcts", nodes: 0, ms: 0 };
+    p = this.groundThreat(1 - k);
+    if (p >= 0) return { move: p, depth: 1, score: 0, kind: "mcts", nodes: 0, ms: 0 };
+    var root = new MNode(-1, 0);
+    this.mctsExpand(root);
+    var deadline = start + (opts.timeMs || 1000), nextReport = start + 400, it = 0;
+    var pick = function(){
+      var b = root.ch[0];
+      for (var i = 1; i < root.ch.length; i++) if (root.ch[i].n > b.n) b = root.ch[i];
+      return b;
+    };
+    for (;;) {
+      this.mctsEval(root); it++;
+      if ((it & 63) === 0) {
+        var tnow = now();
+        if (tnow >= deadline) break;
+        if (opts.onProgress && tnow >= nextReport) {
+          var bb = pick();
+          opts.onProgress({ move: bb.move, depth: 0, score: 0, nodes: it, ms: Math.round(tnow - start) });
+          nextReport = tnow + 400;
+        }
+      }
+    }
+    var best = pick();
+    // score: 選んだ手の勝率を、αβ側の評価と同じ向き（手番側から見て正が有利）のおおよその値にする
+    var rate = best.n ? 1 - best.w / best.n : 0.5;
+    return { move: best.move, depth: 0, score: Math.round((rate - 0.5) * 1000), kind: "mcts", nodes: it,
+             ms: Math.round(now() - start), rate: rate,
+             visits: root.ch.map(function(c){ return { move: c.move, n: c.n, rate: c.n ? 1 - c.w / c.n : 0 }; }) };
+  };
+
   E.bookKey = function(){
     var s = "";
     for (var i = 0; i < 64; i++) { var v = this.board[i]; s += v === 0 ? "0" : (v === 1 ? "1" : "2"); }
@@ -747,6 +852,7 @@ var Score4 = (function(){
 
   // opts: {timeMs, maxDepth, book, random}
   E.think = function(opts){
+    if (opts.algo === "mcts") return this.mcts(opts);
     var h = this.h, legal = [], p;
     for (p = 0; p < 16; p++) if (h[p] < 4) legal.push(p);
     if (!legal.length) return null;
@@ -827,8 +933,10 @@ if (typeof module !== "undefined") module.exports = Score4;
     easy:   { timeMs: 200,  maxDepth: 2,  random: 0.3, label: "初級" },
     normal: { timeMs: 500,  maxDepth: 4,  margin: 30, label: "中級" },
     hard:   { timeMs: 3000, maxDepth: 60, book: true, margin: 12, label: "上級" },
-    max:    { timeMs: 8000, maxDepth: 60, book: true, margin: 5, label: "最強" }
+    max:    { timeMs: 8000, maxDepth: 60, book: true, margin: 5, label: "最強" },
+    mcts:   { timeMs: 8000, algo: "mcts", label: "MCTS" }
   };
+  function aiName(m){ var l = LEVELS[m].label; return l + (/[A-Za-z]$/.test(l) ? " AI" : "AI"); }
   var HINT = { timeMs: 2000, maxDepth: 60, book: true };
 
   var STORE_KEY = "rittai4.settings";
@@ -905,7 +1013,7 @@ if (typeof module !== "undefined") module.exports = Score4;
     setTimeout(function(){
       if (pending !== req) return;
       syncEngine.load(req.moves);
-      var o = { timeMs: Math.min(req.opts.timeMs, 5000), maxDepth: req.opts.maxDepth, book: !!req.opts.book, random: req.opts.random || 0, margin: req.opts.margin || 0 };
+      var o = { timeMs: Math.min(req.opts.timeMs, 5000), maxDepth: req.opts.maxDepth, book: !!req.opts.book, random: req.opts.random || 0, margin: req.opts.margin || 0, algo: req.opts.algo };
       var r = syncEngine.think(o);
       if (pending !== req) return;
       pending = null; req.onDone(r);
@@ -916,7 +1024,7 @@ if (typeof module !== "undefined") module.exports = Score4;
     var req = { id: ++reqId, moves: pegList(), opts: opts, onProgress: onProgress, onDone: onDone, last: null, start: performance.now() };
     if (worker && workerOK) {
       req.viaWorker = true; pending = req;
-      worker.postMessage({ id: req.id, moves: req.moves, opts: { timeMs: opts.timeMs, maxDepth: opts.maxDepth, book: !!opts.book, random: opts.random || 0, margin: opts.margin || 0 } });
+      worker.postMessage({ id: req.id, moves: req.moves, opts: { timeMs: opts.timeMs, maxDepth: opts.maxDepth, book: !!opts.book, random: opts.random || 0, margin: opts.margin || 0, algo: opts.algo } });
     } else runSync(req);
     return req;
   }
@@ -1299,7 +1407,7 @@ if (typeof module !== "undefined") module.exports = Score4;
     var nameA, nameB;
     if (mode === "pvp") { nameA = "朱"; nameB = "象牙"; }
     else {
-      var ai = LEVELS[mode].label + "AI";
+      var ai = aiName(mode);
       nameA = humanSide === 1 ? "あなた" : ai; nameB = humanSide === 1 ? ai : "あなた";
     }
     $("nmA").textContent = nameA; $("nmB").textContent = nameB;
@@ -1308,7 +1416,7 @@ if (typeof module !== "undefined") module.exports = Score4;
     $("plB").classList.toggle("on", activeSide === -1);
     // mode label
     $("modeLabel").textContent = mode === "pvp" ? "二人で対局" :
-      LEVELS[mode].label + "AI　あなたが" + (humanSide === 1 ? "先手" : "後手");
+      aiName(mode) + "　あなたが" + (humanSide === 1 ? "先手" : "後手");
     topEl.classList.toggle("playing", moves.length > 0);
     // buttons
     var undoable = mode === "pvp" ? moves.length > 0 : moves.some(function(m){ return m.player === humanSide; });
@@ -1325,7 +1433,7 @@ if (typeof module !== "undefined") module.exports = Score4;
     Array.prototype.forEach.call(document.querySelectorAll("#sideSeg button"), function(b){
       b.setAttribute("aria-pressed", String(+b.dataset.side === humanSide)); b.disabled = mode === "pvp";
     });
-    $("levelNote").textContent = (mode === "hard" || mode === "max") && !workerOK ? "この環境では、相手が考えている間は画面の動きが止まります。" : "";
+    $("levelNote").textContent = (mode === "hard" || mode === "max" || mode === "mcts") && !workerOK ? "この環境では、相手が考えている間は画面の動きが止まります。" : "";
     $("kifuText").textContent = moves.length ? pegList().join(",") : "（まだ一手も打たれていません）";
     updateThreatsAndPlan();
   }
@@ -1847,7 +1955,7 @@ if (typeof module !== "undefined") module.exports = Score4;
       winCells = [LN[li*4], LN[li*4+1], LN[li*4+2], LN[li*4+3]];
       var wpl = board[winCells[0]];
       msg = mode === "pvp" ? who(wpl) + "の勝ち" :
-        (wpl === humanSide ? (mode === "max" ? "最強AIに勝ちました" : "あなたの勝ち") : LEVELS[mode].label + "AIの勝ち");
+        (wpl === humanSide ? (mode === "max" ? "最強AIに勝ちました" : "あなたの勝ち") : aiName(mode) + "の勝ち");
       if (has3D) {
         var a = new THREE.Vector3(pegX(winCells[0] & 15), ballY(winCells[0] >> 4), pegZ(winCells[0] & 15));
         var b = new THREE.Vector3(pegX(winCells[3] & 15), ballY(winCells[3] >> 4), pegZ(winCells[3] & 15));
