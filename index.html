@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>立体四目</title>
+<style>
+  :root { --bg:#f6f4ef; --fg:#222; --panel:#fff; --line:#cfc8b8; --p0:#d9372b; --p1:#2b6fd9; --hl:#ffd400; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#1b1b1d; --fg:#eee; --panel:#26262a; --line:#47474f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--fg); font-family:system-ui,sans-serif; }
+  main { max-width:760px; margin:0 auto; }
+  h1 { margin:0 0 8px; font-size:1.4rem; }
+  .bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:8px 0 12px; }
+  select, button { font:inherit; padding:6px 12px; border-radius:6px; border:1px solid var(--line); background:var(--panel); color:var(--fg); }
+  button { cursor:pointer; }
+  #status { font-weight:bold; min-height:1.5em; margin-bottom:8px; }
+  .layers { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  .layer { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px; }
+  .layer h2 { margin:0 0 6px; font-size:.85rem; font-weight:normal; opacity:.7; }
+  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; }
+  .cell { aspect-ratio:1; border-radius:50%; border:2px solid var(--line); background:transparent; padding:0; }
+  .cell.p0 { background:var(--p0); border-color:var(--p0); }
+  .cell.p1 { background:var(--p1); border-color:var(--p1); }
+  .cell.win { box-shadow:0 0 0 3px var(--hl); }
+  .cell.last { outline:2px dashed var(--fg); outline-offset:1px; }
+  .cell.drop:hover { border-color:var(--fg); }
+  .cell:disabled { cursor:default; }
+  .hint { font-size:.8rem; opacity:.7; margin-top:12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>立体四目 <small style="font-weight:normal;opacity:.6">4×4×4 重力あり</small></h1>
+  <div class="bar">
+    <label>対戦
+      <select id="mode">
+        <option value="ai">AIと対戦(自分が先手)</option>
+        <option value="ai2">AIと対戦(自分が後手)</option>
+        <option value="pvp">二人対戦</option>
+      </select>
+    </label>
+    <label>AIの強さ
+      <select id="level">
+        <option value="200">弱い</option>
+        <option value="800" selected>普通</option>
+        <option value="3000">強い</option>
+      </select>
+    </label>
+    <button id="undo">1手戻す</button>
+    <button id="reset">新規ゲーム</button>
+  </div>
+  <div id="status"></div>
+  <div class="layers" id="layers"></div>
+  <p class="hint">どのマスをクリックしても、その縦の列に石が落ちます。下の段(1段目)から積み上がります。赤が先手、青が後手。</p>
+</main>
+<script src="src/engine.js"></script>
+<script>
+const { Game, bestMove } = Rittai;
+const $ = (id) => document.getElementById(id);
+let game, winLine = null, over = false, thinking = false;
+
+function aiPlayer() { const m = $('mode').value; return m === 'ai' ? 1 : m === 'ai2' ? 0 : -1; }
+
+function build() {
+  const root = $('layers');
+  root.innerHTML = '';
+  for (let z = 0; z < 4; z++) {
+    const box = document.createElement('div'); box.className = 'layer';
+    box.innerHTML = `<h2>${z + 1}段目${z === 0 ? '(最下段)' : z === 3 ? '(最上段)' : ''}</h2>`;
+    const grid = document.createElement('div'); grid.className = 'grid';
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
+      const b = document.createElement('button');
+      b.className = 'cell'; b.dataset.col = y * 4 + x; b.dataset.z = z;
+      b.setAttribute('aria-label', `列(${x + 1},${y + 1}) ${z + 1}段目`);
+      b.onclick = () => onCell(y * 4 + x);
+      grid.appendChild(b);
+    }
+    box.appendChild(grid); root.appendChild(box);
+  }
+}
+
+function render() {
+  const last = game.history.length ? game.history[game.history.length - 1] : -1;
+  const lastZ = last >= 0 ? game.heights[last] - 1 : -1;
+  const win = winLine ? new Set(winLine) : new Set();
+  for (const b of document.querySelectorAll('.cell')) {
+    const col = +b.dataset.col, z = +b.dataset.z, c = col * 4 + z;
+    b.classList.toggle('p0', game.owns(0, c));
+    b.classList.toggle('p1', game.owns(1, c));
+    b.classList.toggle('win', win.has(c));
+    b.classList.toggle('last', col === last && z === lastZ);
+    const canDrop = !over && !thinking && game.canPlay(col);
+    b.classList.toggle('drop', canDrop);
+    b.disabled = !canDrop;
+  }
+  const name = (p) => (p === 0 ? '赤(先手)' : '青(後手)');
+  if (winLine) $('status').textContent = `${name(game.turn ^ 1)}の勝ち!`;
+  else if (over) $('status').textContent = '引き分け';
+  else $('status').textContent = thinking ? 'AIが考え中…' : `${name(game.turn)}の番です`;
+}
+
+function afterMove() {
+  winLine = game.lastMoverWon() ? game.winningLine(game.turn ^ 1) : null;
+  over = !!winLine || game.isFull();
+  render();
+  if (!over && game.turn === aiPlayer()) {
+    thinking = true; render();
+    setTimeout(() => {
+      const r = bestMove(game, { timeMs: +$('level').value });
+      thinking = false;
+      game.play(r.move); afterMove();
+    }, 30);
+  }
+}
+
+function onCell(col) {
+  if (over || thinking || game.turn === aiPlayer() || !game.canPlay(col)) return;
+  game.play(col); afterMove();
+}
+
+function reset() {
+  game = new Game(); winLine = null; over = false; thinking = false;
+  render();
+  if (game.turn === aiPlayer()) afterMove2();
+}
+function afterMove2() { // 初手がAIの場合
+  thinking = true; render();
+  setTimeout(() => { thinking = false; game.play(bestMove(game, { timeMs: +$('level').value }).move); afterMove(); }, 30);
+}
+
+$('reset').onclick = reset;
+$('mode').onchange = reset;
+$('undo').onclick = () => {
+  if (thinking || !game.history.length) return;
+  const n = aiPlayer() >= 0 && game.history.length > 1 && game.turn !== aiPlayer() ? 2 : 1;
+  for (let i = 0; i < n && game.history.length; i++) game.undo();
+  winLine = null; over = false; render();
+};
+build(); reset();
+</script>
+</body>
+</html>
