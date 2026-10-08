@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>着地音の聞き比べ</title>
+<style>
+:root{ --bg:#0a0d10; --panel:#161c21; --ink:#e8e3d6; --ink2:#9aa6ad; --line:rgba(255,255,255,.12); }
+*{ box-sizing:border-box; }
+body{ margin:0; min-height:100vh; background:var(--bg); color:var(--ink); font-family:"Hiragino Kaku Gothic ProN",system-ui,sans-serif; padding:16px; }
+main{ max-width:520px; margin:0 auto; }
+h1{ font-size:18px; font-weight:600; margin:8px 0 4px; }
+p{ color:var(--ink2); font-size:13px; line-height:1.6; margin:4px 0 16px; }
+.row{ display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--panel); margin-bottom:8px; }
+.num{ width:28px; font-size:18px; font-weight:600; }
+.name{ flex:1; color:var(--ink2); font-size:12px; }
+button{ font:inherit; color:var(--ink); background:transparent; border:1px solid var(--line); border-radius:8px; padding:10px 14px; min-height:44px; }
+button:active{ background:rgba(255,255,255,.08); }
+.bar{ display:flex; gap:8px; margin-top:12px; }
+#status{ color:var(--ink2); font-size:12px; margin-top:12px; white-space:pre-line; }
+</style>
+</head>
+<body>
+<main>
+  <h1>着地音の聞き比べ</h1>
+  <p>番号と音の対応は開くたびに入れ替わります。音量は最初の180msの大きさで揃えています。同じ端末・同じ音量で聞いてください。</p>
+  <div id="list"></div>
+  <div class="bar">
+    <button id="reveal" type="button">正解を見る</button>
+    <button id="shuffle" type="button">並べ直す</button>
+  </div>
+  <div id="status">読み込み中…</div>
+</main>
+<script>
+(function(){
+  "use strict";
+  var DIR = "../Inbox/KKT_Sound_Lab_B/";
+  // 候補。file があるものは WAV、synth はゲーム本体の今の着地音を写したもの
+  var CANDS = [
+    { name: "A_realistic_dry", file: "A_realistic_dry.wav" },
+    { name: "B1_balanced", file: "B1_balanced.wav" },
+    { name: "B2_dense_warm", file: "B2_dense_warm.wav" },
+    { name: "B3_crisp", file: "B3_crisp.wav" },
+    { name: "今のゲームの音(接触のみ)", synth: true }
+  ];
+  var TARGET_RMS = 0.105, RMS_MS = 180;   // create.py と同じ物差し
+  var ac = null, order = [], revealed = false;
+  var $ = function(id){ return document.getElementById(id); };
+
+  // index.html の knock(): 音程が一瞬で落ちる正弦波 + 帯域を絞ったノイズ
+  // feel.land() の 1段目・朱・strength 1 に合わせる(揺らぎと余韻は入れない)
+  function renderSynth(sr){
+    var len = Math.ceil(sr * 0.42), oc = new OfflineAudioContext(1, len, sr);
+    var vol = 0.2 + 0.48, freq = 310, decay = 0.075 + 0.03, noiseAmt = 0.95, t = 0;
+    function env(g, peak, d){
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak, t + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    }
+    var o = oc.createOscillator(), g = oc.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(freq * 1.8, t);
+    o.frequency.exponentialRampToValueAtTime(freq, t + 0.018);
+    env(g, vol, decay);
+    o.connect(g); g.connect(oc.destination); o.start(t); o.stop(t + decay + 0.05);
+    var nb = oc.createBuffer(1, Math.floor(sr * 0.06), sr), d = nb.getChannelData(0);
+    for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
+    var n = oc.createBufferSource(), f = oc.createBiquadFilter(), ng = oc.createGain();
+    n.buffer = nb; f.type = "bandpass"; f.frequency.value = freq * 3.2; f.Q.value = 1.4;
+    env(ng, Math.max(0.0002, vol * noiseAmt), 0.03);
+    n.connect(f); f.connect(ng); ng.connect(oc.destination); n.start(t); n.stop(t + 0.06);
+    return oc.startRendering();
+  }
+  function rms(buf){
+    var d = buf.getChannelData(0), n = Math.min(d.length, Math.round(buf.sampleRate * RMS_MS / 1000)), s = 0;
+    for (var i = 0; i < n; i++) s += d[i] * d[i];
+    return Math.sqrt(s / n);
+  }
+  function load(){
+    return Promise.all(CANDS.map(function(c){
+      var p = c.synth ? renderSynth(ac.sampleRate)
+        : fetch(DIR + c.file).then(function(r){ if (!r.ok) throw new Error(c.file + " が読めません"); return r.arrayBuffer(); })
+            .then(function(ab){ return new Promise(function(res, rej){ ac.decodeAudioData(ab, res, rej); }); });
+      return p.then(function(buf){ c.buf = buf; c.gain = TARGET_RMS / rms(buf); });
+    }));
+  }
+  function play(c, times){
+    for (var k = 0; k < (times || 1); k++) {
+      var s = ac.createBufferSource(), g = ac.createGain();
+      s.buffer = c.buf; g.gain.value = c.gain * 0.72;
+      s.connect(g); g.connect(ac.destination);
+      s.start(ac.currentTime + 0.02 + k * (c.buf.duration + 0.4));
+    }
+  }
+  function shuffle(){
+    order = CANDS.slice();
+    for (var i = order.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = order[i]; order[i] = order[j]; order[j] = t; }
+    revealed = false; draw();
+  }
+  function draw(){
+    var list = $("list"); list.innerHTML = "";
+    order.forEach(function(c, i){
+      var row = document.createElement("div"); row.className = "row";
+      row.innerHTML = '<span class="num">' + (i + 1) + '</span><span class="name">' + (revealed ? c.name : "") + '</span>';
+      var b1 = document.createElement("button"); b1.type = "button"; b1.textContent = "1回";
+      var b3 = document.createElement("button"); b3.type = "button"; b3.textContent = "3回続けて";
+      b1.onclick = function(){ start().then(function(){ play(c, 1); }); };
+      b3.onclick = function(){ start().then(function(){ play(c, 3); }); };
+      row.appendChild(b1); row.appendChild(b3); list.appendChild(row);
+    });
+  }
+  // iOS: 最初のタップで音声を有効にする
+  var ready = null;
+  function start(){
+    if (!ready) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      ac = new AC();
+      ready = ac.resume().then(load).then(function(){
+        $("status").textContent = CANDS.map(function(c){ return c.name + "  RMS(0-180ms) 補正後 " + (rms(c.buf) * c.gain).toFixed(4); }).join("\n");
+        console.log($("status").textContent);
+      }).catch(function(e){ $("status").textContent = "読み込みに失敗: " + e.message; throw e; });
+    } else if (ac.state !== "running") ac.resume();
+    return ready;
+  }
+  $("reveal").onclick = function(){ revealed = true; draw(); };
+  $("shuffle").onclick = shuffle;
+  shuffle();
+  $("status").textContent = "どれかのボタンを押すと音声が有効になります";
+})();
+</script>
+</body>
+</html>
