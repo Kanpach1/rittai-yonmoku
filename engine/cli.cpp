@@ -97,6 +97,27 @@ int main(int argc, char **argv) {
     std::printf("B(%s) vs A(%s): %d勝 %d敗 %d分\n", argv[6], argv[5], wB, lB, dr);
     return 0;
   }
+  // 対戦場(bench/arena.py)から1行ずつ命令を受けて指す: serve [改良名]
+  //   position <棋譜>  … 初期局面から棋譜を並べる(棒番号をカンマか空白で区切る)
+  //   go <ms>          → "bestmove <棒> score <評価> depth <深さ> nodes <ノード数>"
+  //   quit
+  if (argc >= 2 && !std::strcmp(argv[1], "serve")) {
+    const char *o = argc >= 3 ? argv[2] : "sym";
+    E.optSym = std::strstr(o, "sym") != nullptr;
+    E.optKiller = std::strstr(o, "killer") != nullptr; E.optLMR = std::strstr(o, "lmr") != nullptr;
+    verbose = false;
+    char buf[1024];
+    while (std::fgets(buf, sizeof buf, stdin)) {
+      if (!std::strncmp(buf, "position", 8)) {
+        if (!loadMoves(buf + 8)) std::printf("error 不正な棋譜\n");
+      } else if (!std::strncmp(buf, "go", 2)) {
+        int m = E.think(std::atof(buf + 2), 60, 0, false);
+        std::printf("bestmove %d score %.1f depth %d nodes %.0f\n", m, E.resScore, E.resDepth, E.nodes);
+      } else if (!std::strncmp(buf, "quit", 4)) break;
+      std::fflush(stdout);
+    }
+    return 0;
+  }
   // 標準入力の各行の棋譜について、静的評価を1行ずつ出す（JS版との突き合わせ用）
   if (argc >= 2 && !std::strcmp(argv[1], "eval")) {
     char buf[1024];

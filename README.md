@@ -9,7 +9,7 @@
 
 - 3D盤面: ドラッグで回転、ピンチ/ホイールで拡大縮小。棒をタップするとその棒に玉が落ちます。
 - AI: 初級・中級・上級・最強の4段階(αβ探索、上級以上は定石つき)と、試験中の MCTS AI。二人対局もできます。
-- 見取り図(平面図)、待った、終局後の振り返り(転機の手の表示とやり直し)、棋譜のコピー/読み込み。
+- 待った、終局後の振り返り(転機の手の表示とやり直し)、棋譜のコピー/読み込み。
 - 対局は自動で保存され、ページを開き直しても「前回の続きから」で再開できます。相手ごとの戦績も残ります(この端末のブラウザ内のみ)。
 
 ## 構成
@@ -30,6 +30,16 @@
   g++ -O3 -march=native -std=c++17 -o score4 engine/cli.cpp
   ./score4 think "12,3,15,0" 3000                          # 局面を読む
   ./score4 match 100 20 1 base sym                         # 改良の効果を対戦で確かめる
+  ```
+
+- `bench/` … 既存最強AI(score4_AI)との対戦で強さを測る(requirements 5.1)。
+  - `build.sh` … `build/score4`(このエンジン)と `build/baseline_driver`(score4_AI を同じ命令で動かす包み。`third_party/baseline_ai` が必要)をビルド。
+  - `openings.txt` … 開始局面50個(3手目までの合法局面を対称で同一視した321個から選んだもの。`gen_openings.py` で作り直せる)。
+  - `arena.py` … 50局面×先後入れ替えの100局を指し、得点率・95%区間・思考時間を出す。結果は1局ごとにCSVへ追記し、止めても続きから再開できる。
+
+  ```sh
+  ./bench/build.sh
+  caffeinate -i python3 bench/arena.py --ms 1000 --out bench/results/base_1s.csv   # 1手1秒、同時2局(約40分)
   ```
 
 - `tools/gen_book.py` … score4_AI の定石CSVから `index.html` の `var BOOK=...;` を作り直します。
