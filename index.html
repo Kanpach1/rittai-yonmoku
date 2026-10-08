@@ -1248,9 +1248,6 @@ if (typeof module !== "undefined") module.exports = Score4;
       var gr = g.createRadialGradient(cx, cy, 6, cx, cy, 46);
       gr.addColorStop(0, "rgba(15,8,4,.55)"); gr.addColorStop(0.45, "rgba(15,8,4,.18)"); gr.addColorStop(1, "rgba(15,8,4,0)");
       g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, 46, 0, 6.29); g.fill();
-      g.fillStyle = "rgba(255,236,212,.42)"; g.font = "600 30px 'Zen Kaku Gothic New', sans-serif";
-      g.textAlign = "center"; g.textBaseline = "middle";
-      g.fillText(String(p), cx + 0.38 / W * N * 1.0 + 4, cy + 0.38 / W * N + 4);
     }
     var tex = new THREE.CanvasTexture(cv);
     tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4;
@@ -2207,13 +2204,100 @@ if (typeof module !== "undefined") module.exports = Score4;
   }
 
   /* ---------- input on canvas ---------- */
-  function pick(cx, cy){
-    var r = canvas.getBoundingClientRect();
-    ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
-    raycaster.setFromCamera(ndc, camera);
-    var hits = raycaster.intersectObjects(hitMeshes, false);
-    return hits.length ? hits[0].object.userData.p : -1;
+  // 柱の選択: 「どの棒の先端に玉を通そうとしたか」を画面上の距離で推定する。
+  // 加算スコアではなく優先段階: 先端 → 上部 → 棒全体。上の段階に候補があれば下は見ない(奥行きも見ない)。
+  // 値は実機で調整する初期値(単位は CSS px)。
+  var PICK = { tipPx: 30, upperPx: 24, shaftPx: 16, upperFrac: 0.35, tapPx: 10, switchPx: 6 };
+  var pv = null;
+  function proj(x, y, z, r){
+    pv.set(x, y, z).project(camera);
+    return { x: r.left + (pv.x + 1) / 2 * r.width, y: r.top + (1 - pv.y) / 2 * r.height };
   }
+  function segDist(px, py, a, b){
+    var dx = b.x - a.x, dy = b.y - a.y, L = dx*dx + dy*dy;
+    var t = L > 0 ? Math.max(0, Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / L)) : 0;
+    return Math.hypot(px - (a.x + t * dx), py - (a.y + t * dy));
+  }
+  function pegScreen(){
+    var r = canvas.getBoundingClientRect(), out = [];
+    if (!pv) pv = new THREE.Vector3();
+    camera.updateMatrixWorld();
+    for (var p = 0; p < 16; p++) {
+      out.push({ tip: proj(pegX(p), PEGH, pegZ(p), r),
+                 up: proj(pegX(p), PEGH * (1 - PICK.upperFrac), pegZ(p), r),
+                 base: proj(pegX(p), 0, pegZ(p), r) });
+    }
+    return out;
+  }
+  // 戻り値 {p, level(1=先端 2=上部 3=棒全体 0=なし), d}
+  function pickAt(cx, cy){
+    var s = pegScreen(), lv, p, best, bd;
+    for (lv = 1; lv <= 3; lv++) {
+      best = -1; bd = Infinity;
+      var lim = lv === 1 ? PICK.tipPx : (lv === 2 ? PICK.upperPx : PICK.shaftPx);
+      for (p = 0; p < 16; p++) {
+        var g = s[p];
+        var d = lv === 1 ? Math.hypot(cx - g.tip.x, cy - g.tip.y) : segDist(cx, cy, lv === 2 ? g.up : g.base, g.tip);
+        if (d <= lim && d < bd) { bd = d; best = p; }
+      }
+      if (best >= 0) return { p: best, level: lv, d: bd };
+    }
+    return { p: -1, level: 0, d: 0 };
+  }
+  function pick(cx, cy){ var k = pickAt(cx, cy); dbgNote(cx, cy, k); return k.p; }
+  // 選択中の棒 cur を、新しい候補と同じ段階の物差しで測った距離
+  function pegDist(cx, cy, cur, level){
+    var g = pegScreen()[cur];
+    return level === 1 ? Math.hypot(cx - g.tip.x, cy - g.tip.y) : segDist(cx, cy, level === 2 ? g.up : g.base, g.tip);
+  }
+  // 押している間の選び直し: 新しい候補が今の棒より switchPx 以上近いときだけ切り替える。候補なしなら今の棒のまま
+  function repick(cx, cy, cur){
+    var k = pickAt(cx, cy);
+    if (cur >= 0 && (k.p < 0 || (k.p !== cur && pegDist(cx, cy, cur, k.level) - k.d < PICK.switchPx))) {
+      dbgNote(cx, cy, { p: cur, level: dbg ? dbg.level : 0, d: dbg ? dbg.d : 0 });
+      return cur;
+    }
+    dbgNote(cx, cy, k);
+    return k.p;
+  }
+
+  // デバッグ表示(URL に ?debug=pick を付けたときだけ)
+  var dbg = /[?&]debug=pick\b/.test(location.search) ? { cv: null, x: -1, y: -1, p: -1, level: 0, d: 0, mode: "-", dist: 0 } : null;
+  function dbgNote(cx, cy, k){ if (dbg) { dbg.x = cx; dbg.y = cy; dbg.p = k.p; dbg.level = k.level; dbg.d = k.d; } }
+  function dbgDraw(){
+    if (!dbg) return;
+    if (!dbg.cv) {
+      dbg.cv = document.createElement("canvas");
+      dbg.cv.style.cssText = "pointer-events:none;z-index:5;cursor:default;";
+      canvas.parentNode.insertBefore(dbg.cv, canvas.nextSibling);
+    }
+    var cv = dbg.cv, r = canvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
+    var c = cv.getContext("2d"), s = pegScreen(), p, g;
+    c.setTransform(dpr, 0, 0, dpr, -r.left * dpr, -r.top * dpr);
+    c.clearRect(r.left, r.top, r.width, r.height);
+    c.lineCap = "round";
+    for (p = 0; p < 16; p++) {
+      g = s[p];
+      var hue = (p * 360 / 16) | 0, sel = p === dbg.p;
+      c.strokeStyle = "hsla(" + hue + ",80%,50%," + (sel ? 0.35 : 0.15) + ")";
+      c.lineWidth = PICK.shaftPx * 2; c.beginPath(); c.moveTo(g.base.x, g.base.y); c.lineTo(g.tip.x, g.tip.y); c.stroke();
+      c.lineWidth = PICK.upperPx * 2; c.beginPath(); c.moveTo(g.up.x, g.up.y); c.lineTo(g.tip.x, g.tip.y); c.stroke();
+      c.strokeStyle = "hsla(" + hue + ",80%,45%," + (sel ? 1 : 0.7) + ")";
+      c.lineWidth = sel ? 3 : 1.5; c.beginPath(); c.moveTo(g.up.x, g.up.y); c.lineTo(g.tip.x, g.tip.y); c.stroke();
+      c.lineWidth = sel ? 2.5 : 1; c.beginPath(); c.arc(g.tip.x, g.tip.y, PICK.tipPx, 0, Math.PI * 2); c.stroke();
+      c.fillStyle = "hsl(" + hue + ",80%,40%)"; c.beginPath(); c.arc(g.tip.x, g.tip.y, 3, 0, Math.PI * 2); c.fill();
+      c.font = "11px sans-serif"; c.fillText(String(p), g.tip.x + 5, g.tip.y - 5);
+    }
+    if (dbg.x >= 0) { c.fillStyle = "#000"; c.beginPath(); c.arc(dbg.x, dbg.y, 4, 0, Math.PI * 2); c.fill(); }
+    var lines = ["pick: " + (dbg.p >= 0 ? dbg.p : "なし") + "  priority: " + (dbg.level ? ["", "1 先端", "2 上部", "3 棒全体"][dbg.level] + " (" + dbg.d.toFixed(1) + "px)" : "-"),
+                 "移動: " + dbg.dist.toFixed(1) + "px  mode: " + dbg.mode];
+    c.font = "13px sans-serif";
+    c.fillStyle = "rgba(255,255,255,0.85)"; c.fillRect(r.left + 8, r.top + r.height - 52, 300, 44);
+    c.fillStyle = "#000";
+    for (var li = 0; li < lines.length; li++) c.fillText(lines[li], r.left + 14, r.top + r.height - 34 + li * 18);
+  }
+
   function hover(cx, cy){
     if (selPeg >= 0) return;
     if (busyForHuman()) { ghost.visible = false; colDisc.visible = false; return; }
@@ -2243,16 +2327,16 @@ if (typeof module !== "undefined") module.exports = Score4;
       ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
       viewTween = null; spin = null; dragVel = 0; lastDragT = performance.now();
       if (ptrs.size === 1) {
-        downInfo = { t: performance.now(), moved: 0, peg: -1 };
+        // mode: "tap" = 着手候補、"rotate" = 盤の回転。押した位置から tapPx 以上動いたら回転にし、その操作中は戻さない
+        downInfo = { x0: e.clientX, y0: e.clientY, mode: "tap", peg: pick(e.clientX, e.clientY), previewed: false };
         // 触れた瞬間: 柱がごく軽く反応し、着地点に予告の玉
-        if (!busyForHuman()) {
-          var pp = pick(e.clientX, e.clientY);
-          if (pp >= 0 && heights[pp] < 4) {
-            downInfo.peg = pp; feel.select();
-            if (selPeg < 0 || selPeg === pp) previewAt(pp);
-          }
+        var pp = downInfo.peg;
+        if (!busyForHuman() && pp >= 0 && heights[pp] < 4) {
+          downInfo.previewed = true; feel.select();
+          if (selPeg < 0 || selPeg === pp) previewAt(pp);
         }
-      } else { downInfo = null; pinchD = pdist(); cancelPreview(); }
+        if (dbg) { dbg.mode = "tap"; dbg.dist = 0; }
+      } else { downInfo = null; pinchD = pdist(); cancelPreview(); if (dbg) dbg.mode = "-"; }
     });
     canvas.addEventListener("pointermove", function(e){
       var pt = ptrs.get(e.pointerId);
@@ -2260,10 +2344,24 @@ if (typeof module !== "undefined") module.exports = Score4;
       var mx = e.clientX - pt.x, my = e.clientY - pt.y;
       pt.x = e.clientX; pt.y = e.clientY;
       if (ptrs.size === 1) {
-        if (downInfo) {
-          downInfo.moved += Math.abs(mx) + Math.abs(my);
-          if (downInfo.moved >= 10 && downInfo.peg >= 0) { downInfo.peg = -1; cancelPreview(); }
+        if (downInfo && downInfo.mode === "tap") {
+          var dist = Math.hypot(e.clientX - downInfo.x0, e.clientY - downInfo.y0);
+          if (dbg) dbg.dist = dist;
+          if (dist < PICK.tapPx) {
+            // 小さな動きの間は選び直せる(境界では今の棒を少し優先)
+            var np = repick(e.clientX, e.clientY, downInfo.peg);
+            if (np !== downInfo.peg) {
+              downInfo.peg = np;
+              downInfo.previewed = !busyForHuman() && np >= 0 && heights[np] < 4;
+              if (downInfo.previewed) { if (selPeg < 0 || selPeg === np) previewAt(np); }
+              else cancelPreview();
+            }
+            return;
+          }
+          downInfo.mode = "rotate"; downInfo.peg = -1; cancelPreview();
+          if (dbg) dbg.mode = "rotate";
         }
+        if (dbg && downInfo) dbg.dist = Math.hypot(e.clientX - downInfo.x0, e.clientY - downInfo.y0);
         theta -= mx * 0.008;
         var nowT = performance.now(), dtm = Math.max(8, nowT - lastDragT); lastDragT = nowT;
         dragVel = 0.7 * dragVel + 0.3 * (-mx * 0.008 / (dtm / 1000));
@@ -2276,16 +2374,16 @@ if (typeof module !== "undefined") module.exports = Score4;
       updateCam();
     });
     var release = function(e){
-      var wasDrag = downInfo && downInfo.moved >= 10 && ptrs.size === 1;
+      var wasDrag = downInfo && downInfo.mode === "rotate" && ptrs.size === 1;
       ptrs.delete(e.pointerId);
       if (wasDrag) {
         if (!reduceMotion && Math.abs(dragVel) > 0.6 && performance.now() - lastDragT < 80) spin = { v: Math.max(-6, Math.min(6, dragVel)) };
         else snapView(true);
       }
       dragVel = 0;
-      if (downInfo && e.type === "pointerup" && downInfo.moved < 10 && performance.now() - downInfo.t < 600) {
-        var p = pick(e.clientX, e.clientY);
-        if (p >= 0) humanPlay(p, p === downInfo.peg);
+      if (downInfo && e.type === "pointerup" && downInfo.mode === "tap") {
+        var p = downInfo.peg;
+        if (p >= 0) humanPlay(p, downInfo.previewed);
         else {
           if (selPeg >= 0) { clearSel(); refresh(); }
           var now = performance.now();
@@ -2443,6 +2541,7 @@ if (typeof module !== "undefined") module.exports = Score4;
       }
       if (hintRing.visible) { hintRing.scale.setScalar(1); hintBall.material.opacity = 0.4; }
       renderer.render(scene, camera);
+      dbgDraw();
     }
     requestAnimationFrame(frame);
   }
