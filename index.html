@@ -2053,7 +2053,8 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
   // 決着の光: 線を走る光の粒、玉の真下に広がる波紋。時刻は winT(着地+静止)から(ms)
   // 決着: 静止のあと、銀白が一気に4球を貫く(先端が通った球から順に一瞬光り、1音ずつ鳴る)。4球目で和音が解放され、余韻だけ長く残る
   // 時刻は winT(着地 + ヒットストップ + 静止)から(ms)
-  var WINFX = { sink: 300, pierce: 380, flash: 400, ripple: 700, result: 1300 };
+  // result: 結果カード(操作)を出す時刻。最後の一手から約1.3秒。光と和音の余韻はその後も裏で続く(演出時間 ≠ 操作できない時間)
+  var WINFX = { sink: 300, pierce: 380, flash: 400, ripple: 700, result: 630 };
   function makeWinFx(a, b, vertical){
     var objs = [], add = function(o){ o.visible = false; scene.add(o); objs.push(o); return o; };
     var bead = add(new THREE.Group());
@@ -2082,6 +2083,7 @@ var KOTO_WAV=[["UklGRoTbAABXQVZFZm10IBAAAAABAAEAgLsAAIAyAgADABgAZGF0YWDbAAAAAABI
     if (li < 0) { msg = "引き分け"; winCells = null; }
     else {
       winCells = [LN[li*4], LN[li*4+1], LN[li*4+2], LN[li*4+3]];
+      if ((winCells[0] >> 4) > (winCells[3] >> 4)) winCells.reverse();   // 線は必ず下の段の玉から貫く(縦・段をまたぐ斜め)
       var wpl = board[winCells[0]];
       msg = mode === "pvp" ? who(wpl) + "の勝ち" :
         (wpl === humanSide ? (mode === "max" ? "最強AIに勝ちました" : "あなたの勝ち") : aiName(mode) + "の勝ち");
