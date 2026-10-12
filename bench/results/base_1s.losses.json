@@ -1,0 +1,422 @@
+[
+ {
+  "opening": 2,
+  "a_first": false,
+  "plies": 53,
+  "end": "B win",
+  "turning_ply": 31,
+  "plies_to_end": 22,
+  "loss_in": 16.0,
+  "alt": {
+   "move": 2,
+   "score": -99983.0,
+   "played": 3
+  }
+ },
+ {
+  "opening": 3,
+  "a_first": false,
+  "plies": 57,
+  "end": "B win",
+  "turning_ply": 33,
+  "plies_to_end": 24,
+  "loss_in": 22.0,
+  "alt": {
+   "move": 13,
+   "score": -99977.0,
+   "played": 13
+  }
+ },
+ {
+  "opening": 4,
+  "a_first": false,
+  "plies": 63,
+  "end": "B win",
+  "turning_ply": 35,
+  "plies_to_end": 28,
+  "loss_in": 24.0,
+  "alt": {
+   "move": 10,
+   "score": -99973.0,
+   "played": 13
+  }
+ },
+ {
+  "opening": 5,
+  "a_first": true,
+  "plies": 62,
+  "end": "B win",
+  "turning_ply": 38,
+  "plies_to_end": 24,
+  "loss_in": 22.0,
+  "alt": {
+   "move": 15,
+   "score": -99977.0,
+   "played": 15
+  }
+ },
+ {
+  "opening": 6,
+  "a_first": true,
+  "plies": 54,
+  "end": "B win",
+  "turning_ply": 32,
+  "plies_to_end": 22,
+  "loss_in": 20.0,
+  "alt": {
+   "move": 3,
+   "score": 1291.7,
+   "played": 6
+  }
+ },
+ {
+  "opening": 7,
+  "a_first": true,
+  "plies": 62,
+  "end": "B win",
+  "turning_ply": 36,
+  "plies_to_end": 26,
+  "loss_in": 22.0,
+  "alt": {
+   "move": 0,
+   "score": -280.0,
+   "played": 3
+  }
+ },
+ {
+  "opening": 7,
+  "a_first": false,
+  "plies": 61,
+  "end": "B win",
+  "turning_ply": 35,
+  "plies_to_end": 26,
+  "loss_in": 22.0,
+  "alt": {
+   "move": 4,
+   "score": -138.2,
+   "played": 7
+  }
+ },
+ {
+  "opening": 8,
+  "a_first": true,
+  "plies": 56,
+  "end": "B win",
+  "turning_ply": 34,
+  "plies_to_end": 22,
+  "loss_in": 20.0,
+  "alt": {
+   "move": 10,
+   "score": 1359.3,
+   "played": 9
+  }
+ },
+ {
+  "opening": 9,
+  "a_first": false,
+  "plies": 63,
+  "end": "B win",
+  "turning_ply": 37,
+  "plies_to_end": 26,
+  "loss_in": 20.0,
+  "alt": {
+   "move": 11,
+   "score": -99975.0,
+   "played": 11
+  }
+ },
+ {
+  "opening": 10,
+  "a_first": false,
+  "plies": 57,
+  "end": "B win",
+  "turning_ply": 35,
+  "plies_to_end": 22,
+  "loss_in": 18.0,
+  "alt": {
+   "move": 2,
+   "score": -852.5,
+   "played": 2
+  }
+ },
+ {
+  "opening": 14,
+  "a_first": true,
+  "plies": 62,
+  "end": "B win",
+  "turning_ply": 38,
+  "plies_to_end": 24,
+  "loss_in": 20.0,
+  "alt": {
+   "move": 12,
+   "score": -294.3,
+   "played": 12
+  }
+ },
+ {
+  "opening": 16,
+  "a_first": false,
+  "plies": 55,
+  "end": "B win",
+  "turning_ply": 35,
+  "plies_to_end": 20,
+  "loss_in": 18.0,
+  "alt": {
+   "move": 15,
+   "score": -99981.0,
+   "played": 15
+  }
+ },
+ {
+  "opening": 17,
+  "a_first": false,
+  "plies": 63,
+  "end": "B win",
+  "turning_ply": 37,
+  "plies_to_end": 26,
+  "loss_in": 24.0,
+  "alt": {
+   "move": 12,
+   "score": -99975.0,
+   "played": 12
+  }
+ },
+ {
+  "opening": 18,
+  "a_first": false,
+  "plies": 61,
+  "end": "B win",
+  "turning_ply": 37,
+  "plies_to_end": 24,
+  "loss_in": 22.0,
+  "alt": {
+   "move": 14,
+   "score": -99979.0,
+   "played": 14
+  }
+ },
+ {
+  "opening": 19,
+  "a_first": false,
+  "plies": 59,
+  "end": "B win",
+  "turning_ply": 35,
+  "plies_to_end": 24,
+  "loss_in": 22.0,
+  "alt": {
+   "move": 2,
+   "score": -99977.0,
+   "played": 2
+  }
+ },
+ {
+  "opening": 23,
+  "a_first": true,
+  "plies": 58,
+  "end": "B win",
+  "turning_ply": 36,
+  "plies_to_end": 22,
+  "loss_in": 20.0,
+  "alt": {
+   "move": 9,
+   "score": -99979.0,
+   "played": 15
+  }
+ },
+ {
+  "opening": 26,
+  "a_first": false,
+  "plies": 61,
+  "end": "B win",
+  "turning_ply": 35,
+  "plies_to_end": 26,
+  "loss_in": 24.0,
+  "alt": {
+   "move": 13,
+   "score": -99975.0,
+   "played": 13
+  }
+ },
+ {
+  "opening": 27,
+  "a_first": true,
+  "plies": 60,
+  "end": "B win",
+  "turning_ply": 36,
+  "plies_to_end": 24,
+  "loss_in": 22.0,
+  "alt": {
+   "move": 0,
+   "score": -99977.0,
+   "played": 0
+  }
+ },
+ {
+  "opening": 27,
+  "a_first": false,
+  "plies": 57,
+  "end": "B win",
+  "turning_ply": 35,
+  "plies_to_end": 22,
+  "loss_in": 20.0,
+  "alt": {
+   "move": 6,
+   "score": 407.8,
+   "played": 1
+  }
+ },
+ {
+  "opening": 33,
+  "a_first": true,
+  "plies": 58,
+  "end": "B win",
+  "turning_ply": 36,
+  "plies_to_end": 22,
+  "loss_in": 20.0,
+  "alt": {
+   "move": 15,
+   "score": -99979.0,
+   "played": 15
+  }
+ },
+ {
+  "opening": 33,
+  "a_first": false,
+  "plies": 63,
+  "end": "B win",
+  "turning_ply": 35,
+  "plies_to_end": 28,
+  "loss_in": 24.0,
+  "alt": {
+   "move": 13,
+   "score": -99975.0,
+   "played": 13
+  }
+ },
+ {
+  "opening": 35,
+  "a_first": false,
+  "plies": 61,
+  "end": "B win",
+  "turning_ply": 39,
+  "plies_to_end": 22,
+  "loss_in": 22.0,
+  "alt": {
+   "move": 4,
+   "score": -99977.0,
+   "played": 4
+  }
+ },
+ {
+  "opening": 36,
+  "a_first": false,
+  "plies": 61,
+  "end": "B win",
+  "turning_ply": 31,
+  "plies_to_end": 30,
+  "loss_in": 22.0,
+  "alt": {
+   "move": 0,
+   "score": 572.1,
+   "played": 0
+  }
+ },
+ {
+  "opening": 37,
+  "a_first": true,
+  "plies": 58,
+  "end": "B win",
+  "turning_ply": 34,
+  "plies_to_end": 24,
+  "loss_in": 24.0,
+  "alt": {
+   "move": 11,
+   "score": -99977.0,
+   "played": 12
+  }
+ },
+ {
+  "opening": 38,
+  "a_first": false,
+  "plies": 63,
+  "end": "B win",
+  "turning_ply": 37,
+  "plies_to_end": 26,
+  "loss_in": 24.0,
+  "alt": {
+   "move": 10,
+   "score": -99975.0,
+   "played": 10
+  }
+ },
+ {
+  "opening": 44,
+  "a_first": false,
+  "plies": 59,
+  "end": "B win",
+  "turning_ply": 35,
+  "plies_to_end": 24,
+  "loss_in": 22.0,
+  "alt": {
+   "move": 0,
+   "score": -99977.0,
+   "played": 0
+  }
+ },
+ {
+  "opening": 45,
+  "a_first": true,
+  "plies": 56,
+  "end": "B win",
+  "turning_ply": 34,
+  "plies_to_end": 22,
+  "loss_in": 20.0,
+  "alt": {
+   "move": 2,
+   "score": -99979.0,
+   "played": 7
+  }
+ },
+ {
+  "opening": 46,
+  "a_first": true,
+  "plies": 58,
+  "end": "B win",
+  "turning_ply": 38,
+  "plies_to_end": 20,
+  "loss_in": 16.0,
+  "alt": {
+   "move": 15,
+   "score": -99981.0,
+   "played": 6
+  }
+ },
+ {
+  "opening": 48,
+  "a_first": true,
+  "plies": 60,
+  "end": "B win",
+  "turning_ply": 36,
+  "plies_to_end": 24,
+  "loss_in": 20.0,
+  "alt": {
+   "move": 8,
+   "score": -117.9,
+   "played": 8
+  }
+ },
+ {
+  "opening": 49,
+  "a_first": true,
+  "plies": 64,
+  "end": "B win",
+  "turning_ply": 36,
+  "plies_to_end": 28,
+  "loss_in": 24.0,
+  "alt": {
+   "move": 4,
+   "score": -99975.0,
+   "played": 4
+  }
+ }
+]

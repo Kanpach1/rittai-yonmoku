@@ -4,6 +4,7 @@
 このプロジェクトの C++ エンジンで短く読んで評価が偏りすぎないものから、固定の乱数で50個選ぶ。
 
     python3 bench/gen_openings.py > bench/openings.txt
+    python3 bench/gen_openings.py 150 > bench/openings150.txt   # 改良の比較用(300局)
 """
 import itertools
 import random
@@ -12,6 +13,9 @@ import sys
 from s4lib import Board, EngineProc, canonical
 
 PLIES, COUNT, SEED, MS, LIMIT = 3, 50, 20261008, 150, 120
+# 例: python3 bench/gen_openings.py 150 > bench/openings150.txt(数を変えると別の組になる。5.1 の判定は50個の組で行う)
+if len(sys.argv) >= 2:
+    COUNT = int(sys.argv[1])
 
 seen, cands = set(), []
 for seq in itertools.product(range(16), repeat=PLIES):

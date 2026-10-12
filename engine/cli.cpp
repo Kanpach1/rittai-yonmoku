@@ -68,8 +68,13 @@ int main(int argc, char **argv) {
     A.setTT(new s4::TTE[1u << TT_BITS], TT_BITS);
     B.setTT(new s4::TTE[1u << TT_BITS], TT_BITS);
     auto conf = [](s4::Engine &e, const char *s) { e.optSym = std::strstr(s, "sym") != nullptr;
-      e.optKiller = std::strstr(s, "killer") != nullptr; e.optLMR = std::strstr(s, "lmr") != nullptr; };
+      e.optKiller = std::strstr(s, "killer") != nullptr; e.optLMR = std::strstr(s, "lmr") != nullptr;
+      e.optKeepTT = std::strstr(s, "keep") != nullptr; e.optRootPVS = std::strstr(s, "rpvs") != nullptr; e.optDeepTT = std::strstr(s, "deep") != nullptr;
+      const char *pk = std::strstr(s, "par"); e.parityK = pk ? std::atof(pk + 3) : 0;
+      const char *sv = std::strstr(s, "solve"); e.solveEmpty = sv ? std::atoi(sv + 5) : 0; };
     conf(A, argv[5]); conf(B, argv[6]);
+    if (A.solveEmpty) A.setSolverTT(new s4::TTE[1u << 22], 22);
+    if (B.solveEmpty) B.setSolverTT(new s4::TTE[1u << 22], 22);
     verbose = false;
     int wB = 0, lB = 0, dr = 0;
     for (int g = 0; g < pairs; g++) {
@@ -105,6 +110,10 @@ int main(int argc, char **argv) {
     const char *o = argc >= 3 ? argv[2] : "sym";
     E.optSym = std::strstr(o, "sym") != nullptr;
     E.optKiller = std::strstr(o, "killer") != nullptr; E.optLMR = std::strstr(o, "lmr") != nullptr;
+    E.optKeepTT = std::strstr(o, "keep") != nullptr; E.optRootPVS = std::strstr(o, "rpvs") != nullptr; E.optDeepTT = std::strstr(o, "deep") != nullptr;
+    { const char *pk = std::strstr(o, "par"); E.parityK = pk ? std::atof(pk + 3) : 0; }
+    { const char *sv = std::strstr(o, "solve"); E.solveEmpty = sv ? std::atoi(sv + 5) : 0; }
+    if (E.solveEmpty) E.setSolverTT(new s4::TTE[1u << 22], 22);
     verbose = false;
     char buf[1024];
     while (std::fgets(buf, sizeof buf, stdin)) {
@@ -116,6 +125,19 @@ int main(int argc, char **argv) {
       } else if (!std::strncmp(buf, "quit", 4)) break;
       std::fflush(stdout);
     }
+    return 0;
+  }
+  // 局面を読み切る: solve <棋譜> [ms] → "solve <+1/0/-1|?> move <棒> nodes <n> ms <t>"(手番側から見た結果)
+  if (argc >= 3 && !std::strcmp(argv[1], "solve")) {
+    double ms = argc >= 4 ? std::atof(argv[3]) : 10000;
+    if (!loadMoves(argv[2])) { std::fprintf(stderr, "棋譜が不正です\n"); return 1; }
+    static s4::TTE *stt = new s4::TTE[1u << 22];
+    E.setSolverTT(stt, 22);
+    double t = s4_now();
+    int v = 0, m = -1;
+    bool ok = E.solveRoot(ms, v, m);
+    if (ok) std::printf("solve %+d move %d nodes %.0f ms %.0f\n", v, m, E.nodes, s4_now() - t);
+    else std::printf("solve ? move -1 nodes %.0f ms %.0f\n", E.nodes, s4_now() - t);
     return 0;
   }
   // 標準入力の各行の棋譜について、静的評価を1行ずつ出す（JS版との突き合わせ用）
